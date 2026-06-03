@@ -1,0 +1,30 @@
+@import 'tailwindcss';
+
+@theme {
+  --font-sans: 'DM Sans', system-ui, sans-serif;
+  --color-cream: #faf8f5;
+  --color-ink: #1a1814;
+  --color-muted: #8a8478;
+  --color-line: #ebe6de;
+  --color-accent: #3d6b4f;
+  --color-accent-soft: #e8f0eb;
+  --breakpoint-xs: 400px;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-sans);
+  background: var(--color-cream);
+  color: var(--color-ink);
+  -webkit-font-smoothing: antialiased;
+  overflow-x: hidden;
+}
+
+/* Hide horizontal scrollbar on filter strips (mobile) */
+.scrollbar-none {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+.scrollbar-none::-webkit-scrollbar {
+  display: none;
+}

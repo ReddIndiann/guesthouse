@@ -1,0 +1,116 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function staffDoc() {
+      return get(/databases/$(database)/documents/staff/$(request.auth.uid));
+    }
+
+    function hasStaffProfile() {
+      return isSignedIn() && staffDoc().exists();
+    }
+
+    function staffPropertyId() {
+      return staffDoc().data.propertyId;
+    }
+
+    function effectiveRoleId() {
+      let staff = staffDoc().data;
+      return staff.assignmentType == 'group'
+        ? get(/databases/$(database)/documents/properties/$(staff.propertyId)/groups/$(staff.groupId)).data.roleId
+        : staff.roleId;
+    }
+
+    function rolePermissions() {
+      return get(/databases/$(database)/documents/properties/$(staffPropertyId())/roles/$(effectiveRoleId())).data.permissions;
+    }
+
+    function hasPermission(perm) {
+      return hasStaffProfile() && perm in rolePermissions();
+    }
+
+    function canManageAccess() {
+      return hasPermission('roles.manage') || hasPermission('groups.manage') || hasPermission('users.create');
+    }
+
+    function canWriteProperty() {
+      return hasPermission('rooms.updateStatus')
+        || hasPermission('rooms.create')
+        || hasPermission('rooms.update')
+        || hasPermission('rooms.delete')
+        || hasPermission('bookings.create')
+        || hasPermission('bookings.checkin')
+        || hasPermission('bookings.checkout')
+        || hasPermission('bookings.cancel');
+    }
+
+    match /staff/{uid} {
+      allow read: if isSignedIn() && (
+        request.auth.uid == uid ||
+        (hasStaffProfile() && staffDoc().data.propertyId == resource.data.propertyId)
+      );
+      allow create: if isSignedIn() && (
+        request.auth.uid == uid ||
+        (hasStaffProfile() && hasPermission('users.create') && request.resource.data.propertyId == staffPropertyId())
+      );
+      allow update: if hasStaffProfile() && hasPermission('users.assign')
+        && resource.data.propertyId == staffPropertyId();
+      allow delete: if false;
+    }
+
+    match /properties/{propertyId}/roles/{roleId} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId;
+      allow create, update, delete: if hasStaffProfile()
+        && staffPropertyId() == propertyId
+        && hasPermission('roles.manage')
+        && (roleId != 'system-admin' || resource == null);
+    }
+
+    match /properties/{propertyId}/groups/{groupId} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId;
+      allow create, update, delete: if hasStaffProfile()
+        && staffPropertyId() == propertyId
+        && hasPermission('groups.manage');
+    }
+
+    match /properties/{propertyId}/rooms/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('rooms.view');
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+    }
+
+    match /properties/{propertyId}/guests/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('guests.view');
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+    }
+
+    match /properties/{propertyId}/bookings/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.view');
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+    }
+
+    match /properties/{propertyId}/communications/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('guests.view');
+      allow create: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.create');
+      allow update, delete: if false;
+    }
+
+    match /properties/{propertyId}/messageTemplates/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('guests.view');
+      allow create, update, delete: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.create');
+    }
+
+    match /properties/{propertyId} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('dashboard.view');
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('rooms.update');
+    }
+
+    match /users/{userId}/{document=**} {
+      allow read, write: if false;
+    }
+  }
+}
