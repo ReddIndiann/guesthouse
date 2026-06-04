@@ -33,18 +33,19 @@ import {
   updateRoomRecord,
   updateRoomStatus as updateRoomStatusDb,
 } from '../lib/firestore'
-import type {
-  Booking,
-  Communication,
-  Guest,
-  MessageTemplate,
-  MessageTemplateInput,
-  NewBookingInput,
-  NewCommunicationInput,
-  PropertySettings,
-  Room,
-  RoomInput,
-  RoomStatus,
+import {
+  DEFAULT_PROPERTY_SETTINGS,
+  type Booking,
+  type Communication,
+  type Guest,
+  type MessageTemplate,
+  type MessageTemplateInput,
+  type NewBookingInput,
+  type NewCommunicationInput,
+  type PropertySettings,
+  type Room,
+  type RoomInput,
+  type RoomStatus,
 } from '../types'
 
 interface GuestplaceContextValue {
@@ -67,7 +68,7 @@ interface GuestplaceContextValue {
   deleteRoom: (roomId: string) => Promise<void>
   checkIn: (bookingId: string) => Promise<void>
   checkOut: (bookingId: string) => Promise<void>
-  createBooking: (input: NewBookingInput) => Promise<void>
+  createBooking: (input: NewBookingInput) => Promise<string>
   cancelBooking: (bookingId: string) => Promise<void>
   updatePayment: (bookingId: string, amountPaid: number) => Promise<void>
   updateSettings: (settings: PropertySettings) => Promise<void>
@@ -87,13 +88,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [communications, setCommunications] = useState<Communication[]>([])
   const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([])
-  const [settings, setSettings] = useState<PropertySettings>({
-    name: 'My Guest House',
-    address: '',
-    phone: '',
-    checkInTime: '14:00',
-    checkOutTime: '11:00',
-  })
+  const [settings, setSettings] = useState<PropertySettings>(DEFAULT_PROPERTY_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
@@ -256,9 +251,9 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       const room = rooms.find((r) => r.id === input.roomId)
       if (!room) throw new Error('Room not found')
       if (room.status !== 'available') throw new Error('Room is not available')
-      await createBookingRecord(propertyId, input, room, bookings)
+      return createBookingRecord(propertyId, input, room, bookings, settings)
     },
-    [propertyId, rooms, bookings],
+    [propertyId, rooms, bookings, settings],
   )
 
   const cancelBooking = useCallback(

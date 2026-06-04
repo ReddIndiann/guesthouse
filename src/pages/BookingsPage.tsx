@@ -1,14 +1,17 @@
 import { useMemo, useState } from 'react'
 import { BookingCalendar } from '../components/bookings/BookingCalendar'
+import { BookingReceiptDialog } from '../components/bookings/BookingReceiptDialog'
 import { Panel } from '../components/ui/Panel'
 import { PageHeader } from '../components/ui/PageHeader'
 import { useRbac } from '../context/RbacContext'
 import { useGuestplace } from '../context/GuestplaceContext'
 import { bookingStatusConfig } from '../utils/roomStatus'
 import { paymentStatusConfig } from '../utils/bookings'
-import { formatDate, todayISO } from '../utils/dates'
+import { todayISO } from '../utils/dates'
+import { formatBookingSchedule } from '../utils/datetime'
 import { formatMoney } from '../utils/currency'
-import type { BookingStatus } from '../types'
+import { formatBookingRateLabel } from '../utils/pricing'
+import type { Booking, BookingStatus } from '../types'
 
 type BookingsView = 'list' | 'calendar'
 type StatusFilter = BookingStatus | 'all'
@@ -21,6 +24,7 @@ export function BookingsPage() {
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all')
   const [weekStart, setWeekStart] = useState(todayISO())
   const [paymentEdits, setPaymentEdits] = useState<Record<string, string>>({})
+  const [receiptBooking, setReceiptBooking] = useState<Booking | null>(null)
 
   const sorted = useMemo(
     () =>
@@ -130,8 +134,8 @@ export function BookingsPage() {
                           </span>
                         </div>
                         <p className="mt-1 break-words text-sm text-[var(--color-muted)]">
-                          Room {room?.number} · {formatDate(booking.checkIn)} →{' '}
-                          {formatDate(booking.checkOut)}
+                          Room {room?.number} · {formatBookingRateLabel(booking.rateType, booking.hours)}{' '}
+                          · {formatBookingSchedule(booking)}
                         </p>
                         <p className="mt-1 text-sm font-medium text-[var(--color-ink)]">
                           {formatMoney(booking.totalAmount)}
@@ -180,6 +184,13 @@ export function BookingsPage() {
                         can('bookings.cancel') ||
                         can('bookings.checkout')) && (
                         <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 md:flex-col lg:flex-row">
+                          <button
+                            type="button"
+                            onClick={() => setReceiptBooking(booking)}
+                            className="w-full rounded-lg border border-[var(--color-line)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] active:scale-[0.98] sm:w-auto sm:py-1.5"
+                          >
+                            Receipt
+                          </button>
                           {booking.status === 'confirmed' && can('bookings.checkin') && (
                             <button
                               type="button"
@@ -217,6 +228,12 @@ export function BookingsPage() {
           )}
         </>
       )}
+
+      <BookingReceiptDialog
+        booking={receiptBooking}
+        open={!!receiptBooking}
+        onClose={() => setReceiptBooking(null)}
+      />
     </div>
   )
 }

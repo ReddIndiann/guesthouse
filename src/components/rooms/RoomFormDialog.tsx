@@ -28,7 +28,7 @@ const emptyForm: RoomInput = {
   number: '',
   floor: 1,
   type: 'double',
-  pricePerNight: 0,
+  hasAirConditioning: true,
   capacity: 2,
   amenities: [],
 }
@@ -56,7 +56,7 @@ export function RoomFormDialog({
         number: initial.number,
         floor: initial.floor,
         type: initial.type,
-        pricePerNight: initial.pricePerNight,
+        hasAirConditioning: initial.hasAirConditioning,
         capacity: initial.capacity,
         amenities: initial.amenities,
       })
@@ -73,10 +73,6 @@ export function RoomFormDialog({
     const number = form.number.trim()
     if (!number) {
       setError('Room number is required')
-      return
-    }
-    if (form.pricePerNight <= 0) {
-      setError('Price must be greater than zero')
       return
     }
     if (form.capacity < 1) {
@@ -156,15 +152,19 @@ export function RoomFormDialog({
             ))}
           </Select>
         </FormControl>
-        <TextField
-          label="Price per night (₵)"
-          type="number"
-          value={form.pricePerNight || ''}
-          onChange={(e) => setForm((f) => ({ ...f, pricePerNight: Number(e.target.value) }))}
-          slotProps={{ htmlInput: { min: 1 } }}
-          required
-          fullWidth
-        />
+        <FormControl fullWidth size="small">
+          <InputLabel>Air conditioning</InputLabel>
+          <Select
+            label="Air conditioning"
+            value={form.hasAirConditioning ? 'yes' : 'no'}
+            onChange={(e) =>
+              setForm((f) => ({ ...f, hasAirConditioning: e.target.value === 'yes' }))
+            }
+          >
+            <MenuItem value="yes">Air conditioned (AC rates)</MenuItem>
+            <MenuItem value="no">Non air conditioned</MenuItem>
+          </Select>
+        </FormControl>
         <TextField
           label="Amenities"
           value={amenitiesText}

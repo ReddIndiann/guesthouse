@@ -28,3 +28,19 @@ body {
 .scrollbar-none::-webkit-scrollbar {
   display: none;
 }
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .receipt-root,
+  .receipt-root * {
+    visibility: visible;
+  }
+  .receipt-root {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+  }
+}

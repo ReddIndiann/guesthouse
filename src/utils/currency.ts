@@ -6,3 +6,7 @@ export function formatMoney(amount: number): string {
 export function formatMoneyPerNight(amount: number): string {
   return `${formatMoney(amount)} / night`
 }
+
+export function formatMoneyRate(amount: number, unit: string): string {
+  return `${formatMoney(amount)} / ${unit}`
+}

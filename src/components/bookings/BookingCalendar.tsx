@@ -9,6 +9,7 @@ import {
   isDateInRange,
   todayISO,
 } from '../../utils/dates'
+import { formatTime12 } from '../../utils/datetime'
 import type { Booking } from '../../types'
 
 interface BookingCalendarProps {
@@ -104,6 +105,14 @@ export function BookingCalendar({ weekStart, onWeekChange }: BookingCalendarProp
                           title={guest?.name}
                         >
                           <span className="line-clamp-2 font-medium">{guest?.name ?? '—'}</span>
+                          {booking.checkInTime && (
+                            <span className="block text-[9px] opacity-80">
+                              {formatTime12(booking.checkInTime)}
+                              {booking.checkOutTime && booking.rateType !== 'full_day'
+                                ? `–${formatTime12(booking.checkOutTime)}`
+                                : ''}
+                            </span>
+                          )}
                         </div>
                       ) : booking ? (
                         <div className="h-full min-h-[28px] rounded bg-stone-100/80" />

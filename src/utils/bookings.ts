@@ -1,4 +1,26 @@
 import type { Booking, PaymentStatus } from '../types'
+import { bookingsOverlapTimed, type BookingTimeRange } from './datetime'
+
+export function normalizeBooking(data: Booking): Booking {
+  const totalAmount = data.totalAmount ?? 0
+  const amountPaid = data.amountPaid ?? 0
+  const payment = normalizePayment(totalAmount, amountPaid, data.paymentStatus)
+  return {
+    ...data,
+    rateType: data.rateType ?? 'full_day',
+    totalAmount,
+    ...payment,
+  }
+}
+
+function toTimeRange(
+  checkIn: string,
+  checkOut: string,
+  checkInTime?: string,
+  checkOutTime?: string,
+): BookingTimeRange {
+  return { checkIn, checkOut, checkInTime, checkOutTime }
+}
 
 export function normalizePayment(
   totalAmount: number,
@@ -9,13 +31,6 @@ export function normalizePayment(
   if (amountPaid <= 0) return { amountPaid: 0, paymentStatus: 'unpaid' }
   if (amountPaid >= totalAmount) return { amountPaid, paymentStatus: 'paid' }
   return { amountPaid, paymentStatus: 'partial' }
-}
-
-export function normalizeBooking(data: Booking): Booking {
-  const totalAmount = data.totalAmount ?? 0
-  const amountPaid = data.amountPaid ?? 0
-  const payment = normalizePayment(totalAmount, amountPaid, data.paymentStatus)
-  return { ...data, totalAmount, ...payment }
 }
 
 export function bookingsOverlap(
@@ -30,15 +45,19 @@ export function hasRoomConflict(
   roomId: string,
   checkIn: string,
   checkOut: string,
+  checkInTime?: string,
+  checkOutTime?: string,
   excludeBookingId?: string,
 ): boolean {
-  return bookings.some(
-    (b) =>
-      b.roomId === roomId &&
-      b.id !== excludeBookingId &&
-      (b.status === 'confirmed' || b.status === 'checked_in') &&
-      bookingsOverlap(b, { checkIn, checkOut }),
-  )
+  const candidate = toTimeRange(checkIn, checkOut, checkInTime, checkOutTime)
+  return bookings.some((b) => {
+    if (b.roomId !== roomId || b.id === excludeBookingId) return false
+    if (b.status !== 'confirmed' && b.status !== 'checked_in') return false
+    if (checkInTime || checkOutTime || b.checkInTime || b.checkOutTime) {
+      return bookingsOverlapTimed(candidate, b)
+    }
+    return bookingsOverlap(b, { checkIn, checkOut })
+  })
 }
 
 export const paymentStatusConfig: Record<

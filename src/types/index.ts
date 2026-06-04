@@ -6,12 +6,31 @@ export type BookingStatus = 'confirmed' | 'checked_in' | 'checked_out' | 'cancel
 
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
 
+export type BookingRateType = 'full_day' | 'per_hour' | 'two_hours'
+
+export interface RoomRateBand {
+  fullDay: number
+  perHour: number
+  twoHours: number
+}
+
+export interface PropertyRates {
+  ac: RoomRateBand
+  nonAc: RoomRateBand
+}
+
+export const DEFAULT_PROPERTY_RATES: PropertyRates = {
+  ac: { fullDay: 250, perHour: 70, twoHours: 100 },
+  nonAc: { fullDay: 200, perHour: 50, twoHours: 80 },
+}
+
 export interface PropertySettings {
   name: string
   address: string
   phone: string
   checkInTime: string
   checkOutTime: string
+  rates: PropertyRates
 }
 
 export const DEFAULT_PROPERTY_SETTINGS: PropertySettings = {
@@ -20,6 +39,7 @@ export const DEFAULT_PROPERTY_SETTINGS: PropertySettings = {
   phone: '',
   checkInTime: '14:00',
   checkOutTime: '11:00',
+  rates: DEFAULT_PROPERTY_RATES,
 }
 
 export interface Room {
@@ -28,7 +48,9 @@ export interface Room {
   floor: number
   type: RoomType
   status: RoomStatus
-  pricePerNight: number
+  hasAirConditioning: boolean
+  /** @deprecated Legacy field — pricing uses property rates */
+  pricePerNight?: number
   capacity: number
   amenities: string[]
 }
@@ -47,6 +69,10 @@ export interface Booking {
   roomId: string
   checkIn: string
   checkOut: string
+  checkInTime?: string
+  checkOutTime?: string
+  rateType: BookingRateType
+  hours?: number
   status: BookingStatus
   totalAmount: number
   amountPaid: number
@@ -59,6 +85,12 @@ export interface NewBookingInput {
   roomId: string
   checkIn: string
   checkOut: string
+  checkInTime?: string
+  checkOutTime?: string
+  rateType: BookingRateType
+  hours?: number
+  amountPaid?: number
+  walkIn?: boolean
   notes?: string
 }
 
@@ -66,7 +98,7 @@ export interface RoomInput {
   number: string
   floor: number
   type: RoomType
-  pricePerNight: number
+  hasAirConditioning: boolean
   capacity: number
   amenities: string[]
 }

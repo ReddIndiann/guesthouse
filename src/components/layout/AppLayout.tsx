@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { NewBookingDialog } from '../bookings/NewBookingDialog'
+import { WalkInDialog } from '../bookings/WalkInDialog'
 import { useAuth } from '../../context/AuthContext'
 import { useRbac } from '../../context/RbacContext'
 import { useGuestplace } from '../../context/GuestplaceContext'
@@ -25,6 +26,7 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 
 export function AppLayout() {
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [walkInOpen, setWalkInOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { profile, signOut } = useAuth()
   const { can, getRoleName, getGroupName, effectiveRoleId } = useRbac()
@@ -88,16 +90,28 @@ export function AppLayout() {
 
         <div className="space-y-2 border-t border-[var(--color-line)] p-4">
           {can('bookings.create') && (
-            <button
-              type="button"
-              onClick={() => {
-                setBookingOpen(true)
-                closeSidebar()
-              }}
-              className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white active:scale-[0.98]"
-            >
-              + Book
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={() => {
+                  setWalkInOpen(true)
+                  closeSidebar()
+                }}
+                className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white active:scale-[0.98]"
+              >
+                Walk-in
+              </button>
+              <button
+                type="button"
+                onClick={() => {
+                  setBookingOpen(true)
+                  closeSidebar()
+                }}
+                className="w-full rounded-lg border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] active:scale-[0.98]"
+              >
+                + Book ahead
+              </button>
+            </>
           )}
           <button
             type="button"
@@ -129,10 +143,10 @@ export function AppLayout() {
           {can('bookings.create') && (
             <button
               type="button"
-              onClick={() => setBookingOpen(true)}
+              onClick={() => setWalkInOpen(true)}
               className="shrink-0 rounded-lg bg-[var(--color-accent)] px-3 py-2 text-sm font-medium text-white"
             >
-              + Book
+              Walk-in
             </button>
           )}
         </header>
@@ -152,7 +166,10 @@ export function AppLayout() {
       </div>
 
       {can('bookings.create') && (
-        <NewBookingDialog open={bookingOpen} onClose={() => setBookingOpen(false)} />
+        <>
+          <WalkInDialog open={walkInOpen} onClose={() => setWalkInOpen(false)} />
+          <NewBookingDialog open={bookingOpen} onClose={() => setBookingOpen(false)} />
+        </>
       )}
     </div>
   )

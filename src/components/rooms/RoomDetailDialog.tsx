@@ -16,7 +16,8 @@ import type { Room, RoomInput, RoomStatus } from '../../types'
 import { useRbac } from '../../context/RbacContext'
 import { useGuestplace } from '../../context/GuestplaceContext'
 import { StatusLabel } from '../ui/StatusLabel'
-import { formatMoneyPerNight } from '../../utils/currency'
+import { formatMoney } from '../../utils/currency'
+import { getRateBand, roomHasAirConditioning } from '../../utils/pricing'
 import { RoomFormDialog } from './RoomFormDialog'
 
 interface RoomDetailDialogProps {
@@ -39,7 +40,7 @@ export function RoomDetailDialog({
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const { can } = useRbac()
-  const { rooms, updateRoomStatus, markRoomReady, getBookingForRoom, checkOut, updateRoom, deleteRoom } =
+  const { rooms, settings, updateRoomStatus, markRoomReady, getBookingForRoom, checkOut, updateRoom, deleteRoom } =
     useGuestplace()
   const [newStatus, setNewStatus] = useState<RoomStatus>('available')
   const [editOpen, setEditOpen] = useState(false)
@@ -48,6 +49,9 @@ export function RoomDetailDialog({
   const [deleteError, setDeleteError] = useState<string | null>(null)
 
   if (!room) return null
+
+  const hasAC = roomHasAirConditioning(room)
+  const rates = getRateBand(settings.rates, hasAC)
 
   const activeBooking = getBookingForRoom(room.id)
   const showCheckOut = activeBooking?.status === 'checked_in' && can('bookings.checkout')
@@ -109,9 +113,15 @@ export function RoomDetailDialog({
               <dt className="text-[var(--color-muted)]">Capacity</dt>
               <dd className="mt-0.5 font-medium">{room.capacity} guests</dd>
             </div>
-            <div>
-              <dt className="text-[var(--color-muted)]">Rate</dt>
-              <dd className="mt-0.5 font-medium">{formatMoneyPerNight(room.pricePerNight)}</dd>
+            <div className="col-span-2">
+              <dt className="text-[var(--color-muted)]">
+                Rates ({hasAC ? 'Air conditioned' : 'Non-AC'})
+              </dt>
+              <dd className="mt-1 space-y-0.5 font-medium">
+                <p>Full day — {formatMoney(rates.fullDay)}</p>
+                <p>2 hours — {formatMoney(rates.twoHours)}</p>
+                <p>Per hour — {formatMoney(rates.perHour)}</p>
+              </dd>
             </div>
           </dl>
 
@@ -144,7 +154,7 @@ export function RoomDetailDialog({
               fullWidth
               size="large"
             >
-              Book this room
+              Walk-in guest
             </Button>
           )}
 

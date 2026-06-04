@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { NewBookingDialog } from '../components/bookings/NewBookingDialog'
+import { WalkInDialog } from '../components/bookings/WalkInDialog'
 import { RoomCard } from '../components/rooms/RoomCard'
 import { RoomDetailDialog } from '../components/rooms/RoomDetailDialog'
 import { RoomFormDialog } from '../components/rooms/RoomFormDialog'
@@ -32,6 +33,7 @@ export function RoomsPage() {
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
   const [addOpen, setAddOpen] = useState(false)
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [walkInOpen, setWalkInOpen] = useState(false)
   const [bookingRoomId, setBookingRoomId] = useState<string | undefined>()
   const [clearing, setClearing] = useState(false)
 
@@ -196,7 +198,7 @@ export function RoomsPage() {
         onDeleted={() => setSelectedRoom(null)}
         onBook={(roomId) => {
           setBookingRoomId(roomId)
-          setBookingOpen(true)
+          setWalkInOpen(true)
         }}
       />
 
@@ -207,13 +209,18 @@ export function RoomsPage() {
         existingNumbers={roomNumbers}
       />
 
-      <NewBookingDialog
-        open={bookingOpen}
+      <WalkInDialog
+        open={walkInOpen}
         onClose={() => {
-          setBookingOpen(false)
+          setWalkInOpen(false)
           setBookingRoomId(undefined)
         }}
         preselectedRoomId={bookingRoomId}
+      />
+
+      <NewBookingDialog
+        open={bookingOpen}
+        onClose={() => setBookingOpen(false)}
       />
     </div>
   )

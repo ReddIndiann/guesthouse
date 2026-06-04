@@ -1,5 +1,6 @@
 import type { Room } from '../../types'
-import { formatMoneyPerNight } from '../../utils/currency'
+import { useGuestplace } from '../../context/GuestplaceContext'
+import { formatRateSummary, roomHasAirConditioning } from '../../utils/pricing'
 import { StatusLabel } from '../ui/StatusLabel'
 
 interface RoomCardProps {
@@ -9,6 +10,9 @@ interface RoomCardProps {
 }
 
 export function RoomCard({ room, guestName, onClick }: RoomCardProps) {
+  const { settings } = useGuestplace()
+  const hasAC = roomHasAirConditioning(room)
+
   return (
     <button
       type="button"
@@ -22,10 +26,10 @@ export function RoomCard({ room, guestName, onClick }: RoomCardProps) {
         <StatusLabel status={room.status} />
       </div>
       <p className="mt-2 text-xs capitalize text-[var(--color-muted)] sm:mt-3 sm:text-sm">
-        {room.type} · Floor {room.floor}
+        {room.type} · Floor {room.floor} · {hasAC ? 'AC' : 'Non-AC'}
       </p>
-      <p className="mt-3 text-sm font-medium text-[var(--color-ink)] sm:mt-4">
-        {formatMoneyPerNight(room.pricePerNight)}
+      <p className="mt-3 text-xs font-medium text-[var(--color-ink)] sm:mt-4 sm:text-sm">
+        {formatRateSummary(settings.rates, hasAC)}
       </p>
       {guestName && (
         <p className="mt-1.5 truncate text-xs text-[var(--color-muted)]">{guestName}</p>

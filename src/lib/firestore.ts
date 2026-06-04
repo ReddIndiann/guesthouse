@@ -23,7 +23,9 @@ import type { Booking, Communication, Guest, MessageTemplate, MessageTemplateInp
 import { DEFAULT_PROPERTY_SETTINGS } from '../types'
 import { hasRoomConflict, normalizeBooking, normalizePayment } from '../utils/bookings'
 import { getDefaultMessageTemplates } from '../utils/communications'
-import { nightsBetween, todayISO } from '../utils/dates'
+import { computeBookingSlot } from '../utils/datetime'
+import { todayISO } from '../utils/dates'
+import { calculateBookingTotal, mergePropertyRates, roomHasAirConditioning } from '../utils/pricing'
 import { db } from './firebase'
 
 type PropertyCollection = 'rooms' | 'guests' | 'bookings' | 'communications' | 'messageTemplates'
@@ -38,6 +40,19 @@ function propertyCollection(propertyId: string, name: PropertyCollection) {
 
 function mapDoc<T extends { id: string }>(snap: QueryDocumentSnapshot<DocumentData>): T {
   return { id: snap.id, ...snap.data() } as T
+}
+
+function normalizeRoom(data: Room): Room {
+  const hasAirConditioning = roomHasAirConditioning(data)
+  return { ...data, hasAirConditioning }
+}
+
+function normalizePropertySettings(partial?: Partial<PropertySettings>): PropertySettings {
+  return {
+    ...DEFAULT_PROPERTY_SETTINGS,
+    ...partial,
+    rates: mergePropertyRates(partial?.rates),
+  }
 }
 
 export async function loadStaffProfile(uid: string): Promise<StaffProfile | null> {
@@ -120,7 +135,7 @@ export function subscribeToRooms(
 ): Unsubscribe {
   return onSnapshot(
     propertyCollection(propertyId, 'rooms'),
-    (snapshot) => onData(snapshot.docs.map((d) => mapDoc<Room>(d))),
+    (snapshot) => onData(snapshot.docs.map((d) => normalizeRoom(mapDoc<Room>(d)))),
     (err) => onError(err),
   )
 }
@@ -158,7 +173,9 @@ export function subscribeToPropertySettings(
     propertyDoc(propertyId),
     (snapshot) => {
       const data = snapshot.data()
-      onData({ ...DEFAULT_PROPERTY_SETTINGS, ...(data?.settings as Partial<PropertySettings> | undefined) })
+      onData(
+        normalizePropertySettings(data?.settings as Partial<PropertySettings> | undefined),
+      )
     },
     (err) => onError(err),
   )
@@ -301,7 +318,7 @@ export async function createRoomRecord(propertyId: string, input: RoomInput): Pr
     floor: input.floor,
     type: input.type,
     status: 'available' as const,
-    pricePerNight: input.pricePerNight,
+    hasAirConditioning: input.hasAirConditioning,
     capacity: input.capacity,
     amenities: input.amenities,
   })
@@ -317,9 +334,10 @@ export async function updateRoomRecord(
     number: input.number.trim(),
     floor: input.floor,
     type: input.type,
-    pricePerNight: input.pricePerNight,
+    hasAirConditioning: input.hasAirConditioning,
     capacity: input.capacity,
     amenities: input.amenities,
+    pricePerNight: deleteField(),
   })
 }
 
@@ -387,16 +405,49 @@ export async function createBookingRecord(
   input: NewBookingInput,
   room: Room,
   existingBookings: Booking[],
-): Promise<void> {
-  if (hasRoomConflict(existingBookings, input.roomId, input.checkIn, input.checkOut)) {
-    throw new Error('This room is already booked for those dates')
+  settings: PropertySettings,
+): Promise<string> {
+  const slot =
+    input.checkInTime && input.checkOutTime
+      ? {
+          checkIn: input.checkIn,
+          checkOut: input.checkOut,
+          checkInTime: input.checkInTime,
+          checkOutTime: input.checkOutTime,
+        }
+      : computeBookingSlot(
+          input.rateType,
+          input.checkIn,
+          input.checkInTime ?? settings.checkInTime,
+          settings,
+          input.hours,
+        )
+
+  if (
+    hasRoomConflict(
+      existingBookings,
+      input.roomId,
+      slot.checkIn,
+      slot.checkOut,
+      slot.checkInTime,
+      slot.checkOutTime,
+    )
+  ) {
+    throw new Error('This room is already booked for that time')
   }
 
   const guestRef = doc(propertyCollection(propertyId, 'guests'))
   const bookingRef = doc(propertyCollection(propertyId, 'bookings'))
-  const nights = nightsBetween(input.checkIn, input.checkOut)
-  const checkInToday = input.checkIn === todayISO()
-  const totalAmount = nights * room.pricePerNight
+  const checkInToday = slot.checkIn === todayISO()
+  const walkIn = input.walkIn === true
+  const hasAC = roomHasAirConditioning(room)
+  const totalAmount = calculateBookingTotal(settings.rates, hasAC, input.rateType, {
+    hours: input.hours,
+    checkIn: slot.checkIn,
+    checkOut: slot.checkOut,
+  })
+  const amountPaid = Math.min(Math.max(0, input.amountPaid ?? 0), totalAmount)
+  const payment = normalizePayment(totalAmount, amountPaid)
 
   const guestData = {
     name: input.guest.name,
@@ -408,12 +459,16 @@ export async function createBookingRecord(
   const bookingData = {
     guestId: guestRef.id,
     roomId: input.roomId,
-    checkIn: input.checkIn,
-    checkOut: input.checkOut,
-    status: checkInToday ? 'checked_in' : 'confirmed',
+    checkIn: slot.checkIn,
+    checkOut: slot.checkOut,
+    checkInTime: slot.checkInTime,
+    checkOutTime: slot.checkOutTime,
+    rateType: input.rateType,
+    ...(input.rateType === 'per_hour' && input.hours ? { hours: input.hours } : {}),
+    status: walkIn || checkInToday ? 'checked_in' : 'confirmed',
     totalAmount,
-    amountPaid: 0,
-    paymentStatus: 'unpaid' as const,
+    amountPaid: payment.amountPaid,
+    paymentStatus: payment.paymentStatus,
     ...(input.notes ? { notes: input.notes } : {}),
   }
 
@@ -421,7 +476,8 @@ export async function createBookingRecord(
   batch.set(guestRef, guestData)
   batch.set(bookingRef, bookingData)
   batch.update(doc(propertyCollection(propertyId, 'rooms'), input.roomId), {
-    status: checkInToday ? 'occupied' : 'reserved',
+    status: walkIn || checkInToday ? 'occupied' : 'reserved',
   })
   await batch.commit()
+  return bookingRef.id
 }
