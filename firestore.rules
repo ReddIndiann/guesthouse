@@ -44,9 +44,19 @@ service cloud.firestore {
         || hasPermission('rooms.update')
         || hasPermission('rooms.delete')
         || hasPermission('bookings.create')
+        || hasPermission('bookings.update')
         || hasPermission('bookings.checkin')
         || hasPermission('bookings.checkout')
-        || hasPermission('bookings.cancel');
+        || hasPermission('bookings.cancel')
+        || hasPermission('housekeeping.manage');
+    }
+
+    function canManageHousekeeping() {
+      return hasPermission('housekeeping.manage');
+    }
+
+    function canManageShifts() {
+      return hasPermission('shifts.manage');
     }
 
     match /staff/{uid} {
@@ -104,9 +114,41 @@ service cloud.firestore {
       allow create, update, delete: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.create');
     }
 
+    match /properties/{propertyId}/housekeepingTasks/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('housekeeping.view');
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canManageHousekeeping();
+    }
+
+    match /properties/{propertyId}/maintenanceTickets/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('housekeeping.view');
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canManageHousekeeping();
+    }
+
+    match /properties/{propertyId}/activityLog/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('audit.view');
+      allow create: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+      allow update, delete: if false;
+    }
+
+    match /properties/{propertyId}/shifts/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && (hasPermission('audit.view') || canManageShifts());
+      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canManageShifts();
+    }
+
+    match /properties/{propertyId}/nightAudits/{document=**} {
+      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('reports.view');
+      allow create: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('reports.view');
+      allow update, delete: if false;
+    }
+
     match /properties/{propertyId} {
       allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('dashboard.view');
       allow write: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('rooms.update');
+    }
+
+    match /publicFolios/{token} {
+      allow read: if true;
+      allow write: if hasStaffProfile() && canWriteProperty();
     }
 
     match /users/{userId}/{document=**} {

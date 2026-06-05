@@ -1,14 +1,30 @@
 import type { Booking, PaymentStatus } from '../types'
 import { bookingsOverlapTimed, type BookingTimeRange } from './datetime'
 
+export function sumExtraCharges(charges?: Booking['extraCharges']): number {
+  return (charges ?? []).reduce((sum, c) => sum + c.amount, 0)
+}
+
+export function bookingBaseAmount(data: Booking): number {
+  if (data.baseAmount !== undefined) return data.baseAmount
+  return Math.max(0, (data.totalAmount ?? 0) - sumExtraCharges(data.extraCharges))
+}
+
+export function bookingTotalWithCharges(baseAmount: number, charges?: Booking['extraCharges']): number {
+  return baseAmount + sumExtraCharges(charges)
+}
+
 export function normalizeBooking(data: Booking): Booking {
-  const totalAmount = data.totalAmount ?? 0
+  const baseAmount = bookingBaseAmount(data)
+  const totalAmount = bookingTotalWithCharges(baseAmount, data.extraCharges)
   const amountPaid = data.amountPaid ?? 0
   const payment = normalizePayment(totalAmount, amountPaid, data.paymentStatus)
   return {
     ...data,
     rateType: data.rateType ?? 'full_day',
+    baseAmount,
     totalAmount,
+    extraCharges: data.extraCharges ?? [],
     ...payment,
   }
 }

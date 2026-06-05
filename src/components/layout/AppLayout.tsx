@@ -13,6 +13,8 @@ const allNavItems: { to: string; label: string; permission: Permission }[] = [
   { to: '/bookings', label: 'Bookings', permission: 'bookings.view' },
   { to: '/guests', label: 'Guests', permission: 'guests.view' },
   { to: '/messages', label: 'Mail & Messages', permission: 'guests.view' },
+  { to: '/housekeeping', label: 'Housekeeping', permission: 'housekeeping.view' },
+  { to: '/reports', label: 'Reports', permission: 'reports.view' },
   { to: '/settings', label: 'Settings', permission: 'dashboard.view' },
   { to: '/access', label: 'Access', permission: 'roles.view' },
 ]

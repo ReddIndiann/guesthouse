@@ -1,6 +1,7 @@
 import { useMemo, useState } from 'react'
 import { BookingCalendar } from '../components/bookings/BookingCalendar'
 import { BookingReceiptDialog } from '../components/bookings/BookingReceiptDialog'
+import { EditBookingDialog } from '../components/bookings/EditBookingDialog'
 import { Panel } from '../components/ui/Panel'
 import { PageHeader } from '../components/ui/PageHeader'
 import { useRbac } from '../context/RbacContext'
@@ -25,6 +26,7 @@ export function BookingsPage() {
   const [weekStart, setWeekStart] = useState(todayISO())
   const [paymentEdits, setPaymentEdits] = useState<Record<string, string>>({})
   const [receiptBooking, setReceiptBooking] = useState<Booking | null>(null)
+  const [editBooking, setEditBooking] = useState<Booking | null>(null)
 
   const sorted = useMemo(
     () =>
@@ -132,6 +134,11 @@ export function BookingsPage() {
                           >
                             {payment.label}
                           </span>
+                          {booking.isOverstay && (
+                            <span className="shrink-0 rounded-full bg-rose-100 px-2.5 py-0.5 text-xs font-medium text-rose-800">
+                              Overstay
+                            </span>
+                          )}
                         </div>
                         <p className="mt-1 break-words text-sm text-[var(--color-muted)]">
                           Room {room?.number} · {formatBookingRateLabel(booking.rateType, booking.hours)}{' '}
@@ -182,7 +189,8 @@ export function BookingsPage() {
 
                       {(can('bookings.checkin') ||
                         can('bookings.cancel') ||
-                        can('bookings.checkout')) && (
+                        can('bookings.checkout') ||
+                        can('bookings.update')) && (
                         <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0 md:flex-col lg:flex-row">
                           <button
                             type="button"
@@ -191,6 +199,16 @@ export function BookingsPage() {
                           >
                             Receipt
                           </button>
+                          {can('bookings.update') &&
+                            (booking.status === 'confirmed' || booking.status === 'checked_in') && (
+                              <button
+                                type="button"
+                                onClick={() => setEditBooking(booking)}
+                                className="w-full rounded-lg border border-[var(--color-line)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] active:scale-[0.98] sm:w-auto sm:py-1.5"
+                              >
+                                Amend
+                              </button>
+                            )}
                           {booking.status === 'confirmed' && can('bookings.checkin') && (
                             <button
                               type="button"
@@ -233,6 +251,11 @@ export function BookingsPage() {
         booking={receiptBooking}
         open={!!receiptBooking}
         onClose={() => setReceiptBooking(null)}
+      />
+      <EditBookingDialog
+        booking={editBooking}
+        open={!!editBooking}
+        onClose={() => setEditBooking(null)}
       />
     </div>
   )

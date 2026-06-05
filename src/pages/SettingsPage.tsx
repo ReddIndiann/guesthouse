@@ -126,6 +126,17 @@ export function SettingsPage() {
               />
             </label>
 
+            <label className="flex flex-col gap-1.5 text-sm">
+              <span className="font-medium">WiFi password</span>
+              <input
+                value={form.wifiPassword ?? ''}
+                onChange={(e) => setForm((f) => ({ ...f, wifiPassword: e.target.value }))}
+                disabled={!canEdit}
+                placeholder="Shown on guest folio links"
+                className="rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 disabled:opacity-60"
+              />
+            </label>
+
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Check-in time</span>

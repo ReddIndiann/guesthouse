@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from './AuthContext'
+import { logActivity } from '../lib/operations'
 import {
   cancelBookingRecord,
   checkInBooking,
@@ -82,7 +83,7 @@ interface GuestplaceContextValue {
 const GuestplaceContext = createContext<GuestplaceContextValue | null>(null)
 
 export function GuestplaceProvider({ children }: { children: ReactNode }) {
-  const { profile } = useAuth()
+  const { user, profile } = useAuth()
   const [rooms, setRooms] = useState<Room[]>([])
   const [guests, setGuests] = useState<Guest[]>([])
   const [bookings, setBookings] = useState<Booking[]>([])
@@ -229,20 +230,38 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
     async (bookingId: string) => {
       if (!propertyId) return
       const booking = bookings.find((b) => b.id === bookingId)
+      const room = booking ? rooms.find((r) => r.id === booking.roomId) : undefined
       if (!booking) return
       await checkInBooking(propertyId, bookingId, booking.roomId)
+      await logActivity(propertyId, {
+        action: 'check_in',
+        entityType: 'booking',
+        entityId: bookingId,
+        details: room ? `Room ${room.number}` : undefined,
+        performedBy: user?.uid ?? '',
+        performedByName: profile?.displayName ?? 'Staff',
+      })
     },
-    [propertyId, bookings],
+    [propertyId, bookings, rooms, user, profile],
   )
 
   const checkOut = useCallback(
     async (bookingId: string) => {
       if (!propertyId) return
       const booking = bookings.find((b) => b.id === bookingId)
+      const room = booking ? rooms.find((r) => r.id === booking.roomId) : undefined
       if (!booking) return
       await checkOutBooking(propertyId, bookingId, booking.roomId)
+      await logActivity(propertyId, {
+        action: 'check_out',
+        entityType: 'booking',
+        entityId: bookingId,
+        details: room ? `Room ${room.number}` : undefined,
+        performedBy: user?.uid ?? '',
+        performedByName: profile?.displayName ?? 'Staff',
+      })
     },
-    [propertyId, bookings],
+    [propertyId, bookings, rooms, user, profile],
   )
 
   const createBooking = useCallback(

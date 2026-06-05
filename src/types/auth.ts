@@ -7,10 +7,16 @@ export type Permission =
   | 'rooms.delete'
   | 'bookings.view'
   | 'bookings.create'
+  | 'bookings.update'
   | 'bookings.checkin'
   | 'bookings.checkout'
   | 'bookings.cancel'
   | 'guests.view'
+  | 'housekeeping.view'
+  | 'housekeeping.manage'
+  | 'reports.view'
+  | 'audit.view'
+  | 'shifts.manage'
   | 'roles.view'
   | 'roles.manage'
   | 'groups.view'
@@ -28,10 +34,16 @@ export const ALL_PERMISSIONS: Permission[] = [
   'rooms.delete',
   'bookings.view',
   'bookings.create',
+  'bookings.update',
   'bookings.checkin',
   'bookings.checkout',
   'bookings.cancel',
   'guests.view',
+  'housekeeping.view',
+  'housekeeping.manage',
+  'reports.view',
+  'audit.view',
+  'shifts.manage',
   'roles.view',
   'roles.manage',
   'groups.view',
@@ -74,6 +86,7 @@ export const PERMISSION_TAB_GROUPS: PermissionTabGroup[] = [
     permissions: [
       { key: 'bookings.view', label: 'View bookings tab' },
       { key: 'bookings.create', label: 'Create bookings' },
+      { key: 'bookings.update', label: 'Amend bookings (extend, change room, charges)' },
       { key: 'bookings.checkin', label: 'Check in guests' },
       { key: 'bookings.checkout', label: 'Check out guests' },
       { key: 'bookings.cancel', label: 'Cancel bookings' },
@@ -82,6 +95,24 @@ export const PERMISSION_TAB_GROUPS: PermissionTabGroup[] = [
   {
     tab: 'Guests',
     permissions: [{ key: 'guests.view', label: 'View guests tab' }],
+  },
+  {
+    tab: 'Housekeeping',
+    permissions: [
+      { key: 'housekeeping.view', label: 'View housekeeping' },
+      { key: 'housekeeping.manage', label: 'Manage tasks & maintenance' },
+    ],
+  },
+  {
+    tab: 'Reports',
+    permissions: [{ key: 'reports.view', label: 'View revenue analytics & night audits' }],
+  },
+  {
+    tab: 'Audit',
+    permissions: [
+      { key: 'audit.view', label: 'View activity log' },
+      { key: 'shifts.manage', label: 'Manage staff shifts' },
+    ],
   },
   {
     tab: 'Access',

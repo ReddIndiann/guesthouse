@@ -19,7 +19,8 @@ import type { User } from 'firebase/auth'
 import { seedDefaultRoles, ensureSystemAdminRole } from './accessControl'
 import type { StaffProfile } from '../types/auth'
 import { SYSTEM_ADMIN_ROLE_ID } from '../types/auth'
-import type { Booking, Communication, Guest, MessageTemplate, MessageTemplateInput, NewBookingInput, NewCommunicationInput, PropertySettings, Room, RoomInput, RoomStatus } from '../types'
+import type { Booking, Communication, Guest, HousekeepingChecklistItem, MessageTemplate, MessageTemplateInput, NewBookingInput, NewCommunicationInput, PropertySettings, Room, RoomInput, RoomStatus } from '../types'
+import { DEFAULT_HOUSEKEEPING_CHECKLIST } from '../types'
 import { DEFAULT_PROPERTY_SETTINGS } from '../types'
 import { hasRoomConflict, normalizeBooking, normalizePayment } from '../utils/bookings'
 import { getDefaultMessageTemplates } from '../utils/communications'
@@ -371,16 +372,35 @@ export async function checkInBooking(
   await batch.commit()
 }
 
+function defaultChecklist(): HousekeepingChecklistItem[] {
+  return DEFAULT_HOUSEKEEPING_CHECKLIST.map((label, i) => ({
+    id: `item-${i}`,
+    label,
+    done: false,
+  }))
+}
+
 export async function checkOutBooking(
   propertyId: string,
   bookingId: string,
   roomId: string,
 ): Promise<void> {
+  const now = new Date().toISOString()
   const batch = writeBatch(db)
   batch.update(doc(propertyCollection(propertyId, 'bookings'), bookingId), {
     status: 'checked_out',
   })
-  batch.update(doc(propertyCollection(propertyId, 'rooms'), roomId), { status: 'cleaning' })
+  batch.update(doc(propertyCollection(propertyId, 'rooms'), roomId), {
+    status: 'cleaning',
+    cleaningStartedAt: now,
+  })
+  const taskRef = doc(collection(db, 'properties', propertyId, 'housekeepingTasks'))
+  batch.set(taskRef, {
+    roomId,
+    checklist: defaultChecklist(),
+    status: 'pending',
+    createdAt: now,
+  })
   await batch.commit()
 }
 
@@ -466,9 +486,11 @@ export async function createBookingRecord(
     rateType: input.rateType,
     ...(input.rateType === 'per_hour' && input.hours ? { hours: input.hours } : {}),
     status: walkIn || checkInToday ? 'checked_in' : 'confirmed',
+    baseAmount: totalAmount,
     totalAmount,
     amountPaid: payment.amountPaid,
     paymentStatus: payment.paymentStatus,
+    extraCharges: [],
     ...(input.notes ? { notes: input.notes } : {}),
   }
 
