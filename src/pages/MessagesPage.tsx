@@ -8,7 +8,7 @@ import { useGuestplace } from '../context/GuestplaceContext'
 import { formatCommunicationTime, TEMPLATE_VARIABLE_HINT } from '../utils/communications'
 import type { CommunicationType, MessageTemplate } from '../types'
 
-type MessagesTab = 'email' | 'sms' | 'templates'
+type MessagesTab = 'email' | 'sms' | 'templates' | 'suggestions'
 type TemplateFilter = 'email' | 'sms'
 
 export function MessagesPage() {
@@ -16,10 +16,12 @@ export function MessagesPage() {
   const {
     communications,
     messageTemplates,
+    suggestions,
     getGuest,
     addMessageTemplate,
     updateMessageTemplate,
     deleteMessageTemplate,
+    markSuggestionAsRead,
   } = useGuestplace()
   const [tab, setTab] = useState<MessagesTab>('email')
   const [templateFilter, setTemplateFilter] = useState<TemplateFilter>('email')
@@ -37,6 +39,11 @@ export function MessagesPage() {
   const filteredTemplates = useMemo(
     () => messageTemplates.filter((t) => t.type === templateFilter),
     [messageTemplates, templateFilter],
+  )
+
+  const unreadSuggestions = useMemo(
+    () => suggestions.filter((s) => !s.read).length,
+    [suggestions],
   )
 
   const composeType: CommunicationType = tab === 'sms' ? 'sms' : 'email'
@@ -81,6 +88,7 @@ export function MessagesPage() {
             { id: 'email' as const, label: 'Mail' },
             { id: 'sms' as const, label: 'Messages' },
             { id: 'templates' as const, label: 'Templates' },
+            { id: 'suggestions' as const, label: 'Suggestions' },
           ] as const
         ).map((t) => (
           <button
@@ -94,11 +102,87 @@ export function MessagesPage() {
             }`}
           >
             {t.label}
+            {t.id === 'suggestions' && unreadSuggestions > 0 && (
+              <span className="ml-1.5 rounded-full bg-rose-500 px-1.5 py-0.5 text-xs text-white">
+                {unreadSuggestions}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
-      {tab === 'templates' ? (
+      {tab === 'suggestions' ? (
+        suggestions.length === 0 ? (
+          <Panel className="py-12 text-center">
+            <p className="text-lg font-medium text-[var(--color-ink)]">No suggestions yet</p>
+            <p className="mx-auto mt-2 max-w-sm text-sm text-[var(--color-muted)]">
+              Print the QR code from Settings and place it at reception. Guest feedback will appear
+              here.
+            </p>
+          </Panel>
+        ) : (
+          <div className="space-y-3">
+            {suggestions.map((item) => (
+              <Panel
+                key={item.id}
+                className={`!p-4 sm:!p-5 ${!item.read ? 'border-l-4 border-l-[var(--color-accent)]' : ''}`}
+              >
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-start sm:justify-between">
+                  <div className="min-w-0">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="font-medium text-[var(--color-ink)]">
+                        {item.name ?? 'Anonymous guest'}
+                      </p>
+                      {item.roomNumber && (
+                        <span className="rounded-full bg-[var(--color-cream)] px-2 py-0.5 text-xs text-[var(--color-muted)]">
+                          Room {item.roomNumber}
+                        </span>
+                      )}
+                      {item.rating && (
+                        <span className="text-amber-400 text-sm">
+                          {'★'.repeat(item.rating)}{'☆'.repeat(5 - item.rating)}
+                        </span>
+                      )}
+                      {item.source === 'checkout' && (
+                        <span className="rounded-full bg-violet-50 px-2 py-0.5 text-xs text-violet-700">
+                          After checkout
+                        </span>
+                      )}
+                      {item.source === 'folio' && (
+                        <span className="rounded-full bg-sky-50 px-2 py-0.5 text-xs text-sky-700">
+                          Via folio
+                        </span>
+                      )}
+                      {!item.read && (
+                        <span className="rounded-full bg-[var(--color-accent-soft)] px-2 py-0.5 text-xs font-medium text-[var(--color-accent)]">
+                          New
+                        </span>
+                      )}
+                    </div>
+                    <p className="mt-2 whitespace-pre-wrap text-sm text-[var(--color-ink)]">
+                      {item.message}
+                    </p>
+                  </div>
+                  <div className="flex shrink-0 flex-col items-start gap-2 sm:items-end">
+                    <p className="text-xs text-[var(--color-muted)]">
+                      {new Date(item.createdAt).toLocaleString('en-GH')}
+                    </p>
+                    {!item.read && (
+                      <button
+                        type="button"
+                        onClick={() => markSuggestionAsRead(item.id)}
+                        className="text-xs text-[var(--color-accent)]"
+                      >
+                        Mark read
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </Panel>
+            ))}
+          </div>
+        )
+      ) : tab === 'templates' ? (
         <>
           <div className="mb-4 flex gap-2">
             {(['email', 'sms'] as const).map((t) => (
@@ -250,7 +334,7 @@ export function MessagesPage() {
         </div>
       )}
 
-      {tab !== 'templates' && (
+      {tab !== 'templates' && tab !== 'suggestions' && (
         <ComposeCommunicationDialog
           type={composeType}
           open={composeOpen}

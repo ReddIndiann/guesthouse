@@ -426,6 +426,7 @@ export async function createBookingRecord(
   room: Room,
   existingBookings: Booking[],
   settings: PropertySettings,
+  existingGuestId?: string,
 ): Promise<string> {
   const slot =
     input.checkInTime && input.checkOutTime
@@ -456,12 +457,13 @@ export async function createBookingRecord(
     throw new Error('This room is already booked for that time')
   }
 
-  const guestRef = doc(propertyCollection(propertyId, 'guests'))
+  const guestRef = existingGuestId 
+    ? doc(propertyCollection(propertyId, 'guests'), existingGuestId) 
+    : doc(propertyCollection(propertyId, 'guests'))
   const bookingRef = doc(propertyCollection(propertyId, 'bookings'))
   const checkInToday = slot.checkIn === todayISO()
   const walkIn = input.walkIn === true
-  const hasAC = roomHasAirConditioning(room)
-  const totalAmount = calculateBookingTotal(settings.rates, hasAC, input.rateType, {
+  const totalAmount = calculateBookingTotal(settings.rates, room, input.rateType, {
     hours: input.hours,
     checkIn: slot.checkIn,
     checkOut: slot.checkOut,
@@ -495,7 +497,9 @@ export async function createBookingRecord(
   }
 
   const batch = writeBatch(db)
-  batch.set(guestRef, guestData)
+  if (!existingGuestId) {
+    batch.set(guestRef, guestData)
+  }
   batch.set(bookingRef, bookingData)
   batch.update(doc(propertyCollection(propertyId, 'rooms'), input.roomId), {
     status: walkIn || checkInToday ? 'occupied' : 'reserved',

@@ -34,11 +34,14 @@ import {
   updateRoomRecord,
   updateRoomStatus as updateRoomStatusDb,
 } from '../lib/firestore'
+import { preparePostCheckoutFeedback } from '../lib/checkoutFeedback'
+import { markSuggestionRead, subscribeToSuggestions } from '../lib/suggestions'
 import {
   DEFAULT_PROPERTY_SETTINGS,
   type Booking,
   type Communication,
   type Guest,
+  type GuestSuggestion,
   type MessageTemplate,
   type MessageTemplateInput,
   type NewBookingInput,
@@ -55,6 +58,7 @@ interface GuestplaceContextValue {
   bookings: Booking[]
   communications: Communication[]
   messageTemplates: MessageTemplate[]
+  suggestions: GuestSuggestion[]
   settings: PropertySettings
   loading: boolean
   error: string | null
@@ -77,6 +81,9 @@ interface GuestplaceContextValue {
   addMessageTemplate: (input: MessageTemplateInput) => Promise<void>
   updateMessageTemplate: (id: string, input: MessageTemplateInput) => Promise<void>
   deleteMessageTemplate: (id: string) => Promise<void>
+  markSuggestionAsRead: (id: string) => Promise<void>
+  checkoutFeedback: { booking: Booking; guest: Guest; room: Room } | null
+  clearCheckoutFeedback: () => void
   clearPropertyData: () => Promise<void>
 }
 
@@ -89,6 +96,12 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
   const [bookings, setBookings] = useState<Booking[]>([])
   const [communications, setCommunications] = useState<Communication[]>([])
   const [messageTemplates, setMessageTemplates] = useState<MessageTemplate[]>([])
+  const [suggestions, setSuggestions] = useState<GuestSuggestion[]>([])
+  const [checkoutFeedback, setCheckoutFeedback] = useState<{
+    booking: Booking
+    guest: Guest
+    room: Room
+  } | null>(null)
   const [settings, setSettings] = useState<PropertySettings>(DEFAULT_PROPERTY_SETTINGS)
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
@@ -102,6 +115,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       setBookings([])
       setCommunications([])
       setMessageTemplates([])
+      setSuggestions([])
       setLoading(!profile)
       return
     }
@@ -130,6 +144,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
     const unsubBookings = subscribeToBookings(propertyId, setBookings, handleError)
     const unsubCommunications = subscribeToCommunications(propertyId, setCommunications, handleError)
     const unsubTemplates = subscribeToMessageTemplates(propertyId, setMessageTemplates, handleError)
+    const unsubSuggestions = subscribeToSuggestions(propertyId, setSuggestions, handleError)
     const unsubSettings = subscribeToPropertySettings(propertyId, setSettings, handleError)
 
     return () => {
@@ -138,6 +153,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       unsubBookings()
       unsubCommunications()
       unsubTemplates()
+      unsubSuggestions()
       unsubSettings()
     }
   }, [propertyId, profile])
@@ -250,19 +266,26 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       if (!propertyId) return
       const booking = bookings.find((b) => b.id === bookingId)
       const room = booking ? rooms.find((r) => r.id === booking.roomId) : undefined
-      if (!booking) return
+      const guest = booking ? guests.find((g) => g.id === booking.guestId) : undefined
+      if (!booking || !room || !guest) return
       await checkOutBooking(propertyId, bookingId, booking.roomId)
+      await preparePostCheckoutFeedback(propertyId, booking, guest, room, settings).catch(
+        console.error,
+      )
+      setCheckoutFeedback({ booking, guest, room })
       await logActivity(propertyId, {
         action: 'check_out',
         entityType: 'booking',
         entityId: bookingId,
-        details: room ? `Room ${room.number}` : undefined,
+        details: `Room ${room.number}`,
         performedBy: user?.uid ?? '',
         performedByName: profile?.displayName ?? 'Staff',
       })
     },
-    [propertyId, bookings, rooms, user, profile],
+    [propertyId, bookings, rooms, guests, settings, user, profile],
   )
+
+  const clearCheckoutFeedback = useCallback(() => setCheckoutFeedback(null), [])
 
   const createBooking = useCallback(
     async (input: NewBookingInput) => {
@@ -270,9 +293,19 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       const room = rooms.find((r) => r.id === input.roomId)
       if (!room) throw new Error('Room not found')
       if (room.status !== 'available') throw new Error('Room is not available')
-      return createBookingRecord(propertyId, input, room, bookings, settings)
+      
+      const existingGuest = guests.find((g) => {
+        const nameMatch = g.name.trim().toLowerCase() === input.guest.name.trim().toLowerCase()
+        if (!nameMatch) return false
+        if (input.guest.phone && g.phone) {
+          return g.phone.trim() === input.guest.phone.trim()
+        }
+        return true
+      })
+      
+      return createBookingRecord(propertyId, input, room, bookings, settings, existingGuest?.id)
     },
-    [propertyId, rooms, bookings, settings],
+    [propertyId, rooms, bookings, settings, guests],
   )
 
   const cancelBooking = useCallback(
@@ -341,6 +374,10 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
     [propertyId],
   )
 
+  const markSuggestionAsRead = useCallback(async (id: string) => {
+    await markSuggestionRead(id)
+  }, [])
+
   const clearAllPropertyData = useCallback(async () => {
     if (!propertyId) return
     await clearPropertyData(propertyId)
@@ -353,6 +390,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       bookings,
       communications,
       messageTemplates,
+      suggestions,
       settings,
       loading,
       error,
@@ -375,6 +413,9 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       addMessageTemplate,
       updateMessageTemplate,
       deleteMessageTemplate,
+      markSuggestionAsRead,
+      checkoutFeedback,
+      clearCheckoutFeedback,
       clearPropertyData: clearAllPropertyData,
     }),
     [
@@ -383,6 +424,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       bookings,
       communications,
       messageTemplates,
+      suggestions,
       settings,
       loading,
       error,
@@ -405,6 +447,9 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       addMessageTemplate,
       updateMessageTemplate,
       deleteMessageTemplate,
+      markSuggestionAsRead,
+      checkoutFeedback,
+      clearCheckoutFeedback,
       clearAllPropertyData,
     ],
   )

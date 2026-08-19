@@ -149,6 +149,33 @@ service cloud.firestore {
     match /publicFolios/{token} {
       allow read: if true;
       allow write: if hasStaffProfile() && canWriteProperty();
+      allow update: if request.resource.data.diff(resource.data).affectedKeys().hasOnly(['feedbackSubmitted'])
+        && request.resource.data.feedbackSubmitted == true;
+    }
+
+    match /publicSuggestionForms/{token} {
+      allow read: if true;
+      allow write: if hasStaffProfile() && hasPermission('rooms.update');
+    }
+
+    match /guestSuggestions/{suggestionId} {
+      allow read: if hasStaffProfile()
+        && resource.data.propertyId == staffPropertyId()
+        && hasPermission('guests.view');
+      allow create: if request.resource.data.keys().hasAll(['token', 'propertyId', 'propertyName', 'message', 'createdAt'])
+        && request.resource.data.message is string
+        && request.resource.data.message.size() >= 1
+        && request.resource.data.message.size() <= 2000
+        && request.resource.data.propertyId is string
+        && request.resource.data.token is string
+        && exists(/databases/$(database)/documents/publicSuggestionForms/$(request.resource.data.token))
+        && get(/databases/$(database)/documents/publicSuggestionForms/$(request.resource.data.token)).data.propertyId
+          == request.resource.data.propertyId;
+      allow update: if hasStaffProfile()
+        && resource.data.propertyId == staffPropertyId()
+        && hasPermission('guests.view')
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['read']);
+      allow delete: if false;
     }
 
     match /users/{userId}/{document=**} {

@@ -26,6 +26,11 @@ export function DashboardPage() {
   const todayCheckOuts = bookings.filter(
     (b) => isToday(b.checkOut) && b.status === 'checked_in',
   )
+  const todayISOStr = new Date().toISOString().split('T')[0]
+  const upcomingReservations = bookings
+    .filter((b) => b.checkIn > todayISOStr && b.status === 'confirmed')
+    .sort((a, b) => a.checkIn.localeCompare(b.checkIn))
+    .slice(0, 5)
   const endingSoon = bookings.filter(
     (b) => b.status === 'checked_in' && isBookingEndingSoon(b, 45),
   )
@@ -210,6 +215,26 @@ export function DashboardPage() {
           )}
         </Panel>
       </div>
+
+      {upcomingReservations.length > 0 && (
+        <Panel className="mt-4 sm:mt-6">
+          <h2 className="mb-3 text-sm font-medium text-[var(--color-ink)] sm:mb-4">Upcoming Reservations</h2>
+          <ul className="divide-y divide-[var(--color-line)]">
+            {upcomingReservations.map((booking) => {
+              const guest = getGuest(booking.guestId)
+              const room = getRoom(booking.roomId)
+              return (
+                <li key={booking.id} className="py-3 first:pt-0 last:pb-0">
+                  <p className="truncate font-medium text-[var(--color-ink)]">{guest?.name}</p>
+                  <p className="text-xs text-[var(--color-muted)] sm:text-sm">
+                    Room {room?.number} · {formatBookingSchedule(booking)}
+                  </p>
+                </li>
+              )
+            })}
+          </ul>
+        </Panel>
+      )}
     </div>
   )
 }

@@ -59,7 +59,7 @@ export function BookingsPage() {
 
   return (
     <div>
-      <PageHeader title="Bookings" subtitle="Reservations and stays" />
+      <PageHeader title="Reservations" subtitle="Reservations and stays" />
 
       <div className="mb-6 flex flex-wrap gap-2">
         {(['list', 'calendar'] as const).map((v) => (

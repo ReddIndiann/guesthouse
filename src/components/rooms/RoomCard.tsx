@@ -13,6 +13,7 @@ export function RoomCard({ room, guestName, onClick }: RoomCardProps) {
   const { settings } = useGuestplace()
   const hasAC = roomHasAirConditioning(room)
 
+
   return (
     <button
       type="button"
@@ -29,7 +30,7 @@ export function RoomCard({ room, guestName, onClick }: RoomCardProps) {
         {room.type} · Floor {room.floor} · {hasAC ? 'AC' : 'Non-AC'}
       </p>
       <p className="mt-3 text-xs font-medium text-[var(--color-ink)] sm:mt-4 sm:text-sm">
-        {formatRateSummary(settings.rates, hasAC)}
+        {formatRateSummary(settings.rates, room)}
       </p>
       {guestName && (
         <p className="mt-1.5 truncate text-xs text-[var(--color-muted)]">{guestName}</p>

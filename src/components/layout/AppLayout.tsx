@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { NavLink, Outlet } from 'react-router-dom'
 import { NewBookingDialog } from '../bookings/NewBookingDialog'
 import { WalkInDialog } from '../bookings/WalkInDialog'
+import { CheckoutFeedbackDialog } from '../suggestions/CheckoutFeedbackDialog'
 import { useAuth } from '../../context/AuthContext'
 import { useRbac } from '../../context/RbacContext'
 import { useGuestplace } from '../../context/GuestplaceContext'
@@ -10,7 +11,7 @@ import type { Permission } from '../../types/auth'
 const allNavItems: { to: string; label: string; permission: Permission }[] = [
   { to: '/', label: 'Home', permission: 'dashboard.view' },
   { to: '/rooms', label: 'Rooms', permission: 'rooms.view' },
-  { to: '/bookings', label: 'Bookings', permission: 'bookings.view' },
+  { to: '/bookings', label: 'Reservations', permission: 'bookings.view' },
   { to: '/guests', label: 'Guests', permission: 'guests.view' },
   { to: '/messages', label: 'Mail & Messages', permission: 'guests.view' },
   { to: '/housekeeping', label: 'Housekeeping', permission: 'housekeeping.view' },
@@ -32,7 +33,7 @@ export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { profile, signOut } = useAuth()
   const { can, getRoleName, getGroupName, effectiveRoleId } = useRbac()
-  const { loading, error, settings } = useGuestplace()
+  const { loading, error, settings, checkoutFeedback, clearCheckoutFeedback } = useGuestplace()
 
   const navItems = useMemo(() => {
     const items = allNavItems.filter((item) => can(item.permission))
@@ -172,6 +173,16 @@ export function AppLayout() {
           <WalkInDialog open={walkInOpen} onClose={() => setWalkInOpen(false)} />
           <NewBookingDialog open={bookingOpen} onClose={() => setBookingOpen(false)} />
         </>
+      )}
+
+      {profile?.propertyId && (
+        <CheckoutFeedbackDialog
+          target={checkoutFeedback}
+          propertyId={profile.propertyId}
+          settings={settings}
+          open={!!checkoutFeedback}
+          onClose={clearCheckoutFeedback}
+        />
       )}
     </div>
   )

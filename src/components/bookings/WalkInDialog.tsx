@@ -11,6 +11,7 @@ import {
 import { useGuestplace } from '../../context/GuestplaceContext'
 import type { Booking, BookingRateType } from '../../types'
 import { defaultWalkInSlot } from '../../utils/datetime'
+import { hasRoomConflict } from '../../utils/bookings'
 import { formatMoney } from '../../utils/currency'
 import {
   calculateBookingTotal,
@@ -36,11 +37,21 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
   const { rooms, settings, bookings, createBooking } = useGuestplace()
 
   const availableRooms = rooms.filter((r) => r.status === 'available')
+  
+  const nowISO = new Date().toISOString()
+  // Ensure we don't allow walk-in if a room is reserved soon.
+  // Wait, we need the exact checkIn and checkOut for the selected slot, but since they select the room first,
+  // we filter by a rough 'is it available for at least 1 hour?'. 
+  // For precise conflict checking, it's safer to allow selecting the room and show conflict at the slot level,
+  // or filter out rooms that are reserved today altogether to simplify walk-ins.
+  // Walk-ins are usually immediate. So checking if there's any reservation today for that room is a simple fix.
+  const walkInRooms = availableRooms.filter((r) => !hasRoomConflict(bookings, r.id, nowISO, nowISO, settings.checkInTime, settings.checkOutTime))
 
   const [step, setStep] = useState<Step>(preselectedRoomId ? 'rate' : 'room')
   const [roomId, setRoomId] = useState(preselectedRoomId ?? '')
   const [rateType, setRateType] = useState<BookingRateType>('two_hours')
   const [hours, setHours] = useState(1)
+  const [nights, setNights] = useState(1)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [amountPaid, setAmountPaid] = useState('')
@@ -60,19 +71,25 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
 
   const selectedRoom = rooms.find((r) => r.id === roomId)
   const hasAC = selectedRoom ? roomHasAirConditioning(selectedRoom) : false
-  const slot = useMemo(
-    () => (selectedRoom ? defaultWalkInSlot(rateType, settings, rateType === 'per_hour' ? hours : undefined) : null),
-    [selectedRoom, rateType, hours, settings],
-  )
+  const slot = useMemo(() => {
+    if (!selectedRoom) return null
+    if (rateType === 'full_day') {
+      const base = defaultWalkInSlot('full_day', settings)
+      const d = new Date(base.checkOut)
+      d.setDate(d.getDate() + nights - 1)
+      return { ...base, checkOut: d.toISOString().split('T')[0] }
+    }
+    return defaultWalkInSlot(rateType, settings, rateType === 'per_hour' ? hours : undefined)
+  }, [selectedRoom, rateType, hours, nights, settings])
 
   const total = useMemo(() => {
     if (!selectedRoom || !slot) return 0
-    return calculateBookingTotal(settings.rates, hasAC, rateType, {
+    return calculateBookingTotal(settings.rates, selectedRoom, rateType, {
       hours: rateType === 'per_hour' ? hours : undefined,
       checkIn: slot.checkIn,
       checkOut: slot.checkOut,
     })
-  }, [selectedRoom, slot, settings.rates, hasAC, rateType, hours])
+  }, [selectedRoom, slot, settings.rates, rateType, hours])
 
   const reset = () => {
     setStep(preselectedRoomId ? 'rate' : 'room')
@@ -127,13 +144,18 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
   return (
     <>
       <Dialog open={open} onClose={handleClose} fullScreen={fullScreen} maxWidth="sm" fullWidth>
-        <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>Walk-in check-in</DialogTitle>
+        <div className="flex items-center justify-between pr-4">
+          <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>Walk-in check-in</DialogTitle>
+          <button type="button" onClick={handleClose} className="mt-4 flex h-8 w-8 items-center justify-center rounded-full text-[var(--color-muted)] hover:bg-[var(--color-line)]">
+            ✕
+          </button>
+        </div>
         <DialogContent className="flex flex-col gap-4 pt-4">
           {step === 'room' && (
             <>
               <p className="text-sm text-[var(--color-muted)]">Tap an available room</p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
-                {availableRooms.map((room) => (
+                {walkInRooms.map((room) => (
                   <button
                     key={room.id}
                     type="button"
@@ -147,7 +169,7 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
                   </button>
                 ))}
               </div>
-              {availableRooms.length === 0 && (
+              {walkInRooms.length === 0 && (
                 <p className="text-sm text-rose-700">No rooms available right now.</p>
               )}
             </>
@@ -186,7 +208,28 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
                   <span className="min-w-[4rem] text-center text-lg font-semibold">{hours}h</span>
                   <button
                     type="button"
-                    onClick={() => setHours((h) => Math.min(12, h + 1))}
+                    onClick={() => setHours((h) => Math.min(3, h + 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
+                  >
+                    +
+                  </button>
+                </div>
+              )}
+              {rateType === 'full_day' && (
+                <div className="flex items-center justify-center gap-3">
+                  <button
+                    type="button"
+                    onClick={() => setNights((n) => Math.max(1, n - 1))}
+                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
+                  >
+                    −
+                  </button>
+                  <span className="min-w-[6rem] text-center text-lg font-semibold">
+                    {nights} {nights === 1 ? 'day' : 'days'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setNights((n) => n + 1)}
                     className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
                   >
                     +

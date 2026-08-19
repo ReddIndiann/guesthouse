@@ -28,7 +28,7 @@ export function buildTodayCashReport(
   date = new Date().toISOString().split('T')[0],
 ): TodayCashReport {
   const todayActive = bookings.filter(
-    (b) => isToday(b.checkIn) && b.status !== 'cancelled' && b.status !== 'checked_out',
+    (b) => isToday(b.checkIn) && b.status !== 'cancelled',
   )
 
   const byRateType: TodayCashReport['byRateType'] = {

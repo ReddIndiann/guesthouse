@@ -16,8 +16,7 @@ import type { Room, RoomInput, RoomStatus } from '../../types'
 import { useRbac } from '../../context/RbacContext'
 import { useGuestplace } from '../../context/GuestplaceContext'
 import { StatusLabel } from '../ui/StatusLabel'
-import { formatMoney } from '../../utils/currency'
-import { getRateBand, roomHasAirConditioning } from '../../utils/pricing'
+import { formatRateSummary, roomHasAirConditioning } from '../../utils/pricing'
 import { RoomFormDialog } from './RoomFormDialog'
 
 interface RoomDetailDialogProps {
@@ -50,8 +49,7 @@ export function RoomDetailDialog({
 
   if (!room) return null
 
-  const hasAC = roomHasAirConditioning(room)
-  const rates = getRateBand(settings.rates, hasAC)
+
 
   const activeBooking = getBookingForRoom(room.id)
   const showCheckOut = activeBooking?.status === 'checked_in' && can('bookings.checkout')
@@ -115,12 +113,12 @@ export function RoomDetailDialog({
             </div>
             <div className="col-span-2">
               <dt className="text-[var(--color-muted)]">
-                Rates ({hasAC ? 'Air conditioned' : 'Non-AC'})
+                Rates ({roomHasAirConditioning(room) ? 'Air conditioned' : 'Non-AC'})
               </dt>
               <dd className="mt-1 space-y-0.5 font-medium">
-                <p>Full day — {formatMoney(rates.fullDay)}</p>
-                <p>2 hours — {formatMoney(rates.twoHours)}</p>
-                <p>Per hour — {formatMoney(rates.perHour)}</p>
+                <p className="text-sm text-[var(--color-ink)]">
+                  {formatRateSummary(settings.rates, room)}
+                </p>
               </dd>
             </div>
           </dl>

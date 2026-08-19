@@ -16,6 +16,7 @@ import { RoomsPage } from './pages/RoomsPage'
 import { HousekeepingPage } from './pages/HousekeepingPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { FolioPage } from './pages/FolioPage'
+import { SuggestionPage } from './pages/SuggestionPage'
 
 function AccessGuard() {
   const { can, loading } = useRbac()
@@ -45,6 +46,7 @@ function App() {
         <Routes>
           <Route path="/login" element={<LoginPage />} />
           <Route path="/folio/:token" element={<FolioPage />} />
+          <Route path="/suggestions/:token" element={<SuggestionPage />} />
           <Route element={<ProtectedRoute />}>
             <Route element={<AppShell />}>
               <Route index element={<DashboardPage />} />

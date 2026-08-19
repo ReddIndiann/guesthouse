@@ -10,18 +10,21 @@ export type BookingRateType = 'full_day' | 'per_hour' | 'two_hours'
 
 export interface RoomRateBand {
   fullDay: number
-  perHour: number
+  oneHour: number
   twoHours: number
+  threeHours: number
 }
 
 export interface PropertyRates {
   ac: RoomRateBand
+  acKing: RoomRateBand
   nonAc: RoomRateBand
 }
 
 export const DEFAULT_PROPERTY_RATES: PropertyRates = {
-  ac: { fullDay: 250, perHour: 70, twoHours: 100 },
-  nonAc: { fullDay: 200, perHour: 50, twoHours: 80 },
+  ac: { fullDay: 250, oneHour: 80, twoHours: 150, threeHours: 200 },
+  acKing: { fullDay: 300, oneHour: 80, twoHours: 150, threeHours: 200 },
+  nonAc: { fullDay: 200, oneHour: 50, twoHours: 100, threeHours: 150 },
 }
 
 export interface PropertySettings {
@@ -33,6 +36,41 @@ export interface PropertySettings {
   rates: PropertyRates
   wifiPassword?: string
   lastNightAuditDate?: string
+  suggestionToken?: string
+}
+
+export interface PublicSuggestionForm {
+  propertyId: string
+  propertyName: string
+}
+
+export type SuggestionSource = 'checkout' | 'qr' | 'folio'
+
+export interface GuestSuggestion {
+  id: string
+  token: string
+  propertyId: string
+  propertyName: string
+  name?: string
+  roomNumber?: string
+  rating?: number
+  message: string
+  bookingId?: string
+  source?: SuggestionSource
+  createdAt: string
+  read?: boolean
+}
+
+export interface NewGuestSuggestionInput {
+  token: string
+  propertyId: string
+  propertyName: string
+  name?: string
+  roomNumber?: string
+  rating?: number
+  message: string
+  bookingId?: string
+  source?: SuggestionSource
 }
 
 export const DEFAULT_PROPERTY_SETTINGS: PropertySettings = {
@@ -113,6 +151,9 @@ export interface PublicFolio {
   extraCharges: BookingCharge[]
   wifiPassword?: string
   propertyPhone?: string
+  checkedOut?: boolean
+  suggestionToken?: string
+  feedbackSubmitted?: boolean
 }
 
 export interface NewBookingInput {

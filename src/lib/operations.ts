@@ -43,7 +43,7 @@ import {
 } from '../utils/bookings'
 import { addDaysISO, todayISO } from '../utils/dates'
 import { addMinutesToTime, bookingRangeMs } from '../utils/datetime'
-import { calculateBookingTotal, roomHasAirConditioning } from '../utils/pricing'
+import { calculateBookingTotal } from '../utils/pricing'
 import { db } from './firebase'
 
 type OpsCollection =
@@ -343,25 +343,25 @@ export async function extendBookingStay(
     checkOut = end.dayOffset > 0 ? addDaysISO(checkOut, end.dayOffset) : checkOut
     checkOutTime = end.time
     if (rateType === 'two_hours') {
-      baseAmount += calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'two_hours')
+      baseAmount += calculateBookingTotal(settings.rates, room, 'two_hours')
     } else if (rateType === 'per_hour') {
       hours = (hours ?? 1) + 2
-      baseAmount = calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'per_hour', {
+      baseAmount = calculateBookingTotal(settings.rates, room, 'per_hour', {
         hours,
       })
     } else {
-      const extra = calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'two_hours')
+      const extra = calculateBookingTotal(settings.rates, room, 'two_hours')
       baseAmount += extra
     }
   } else if (input.option === 'one_night') {
     checkOut = addDaysISO(checkOut, 1)
     if (rateType === 'full_day') {
-      baseAmount = calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'full_day', {
+      baseAmount = calculateBookingTotal(settings.rates, room, 'full_day', {
         checkIn: booking.checkIn,
         checkOut,
       })
     } else {
-      const extra = calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'full_day', {
+      const extra = calculateBookingTotal(settings.rates, room, 'full_day', {
         checkIn: booking.checkOut,
         checkOut,
       })
@@ -375,11 +375,11 @@ export async function extendBookingStay(
     checkOutTime = end.time
     if (rateType === 'per_hour') {
       hours = (hours ?? 1) + addH
-      baseAmount = calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'per_hour', {
+      baseAmount = calculateBookingTotal(settings.rates, room, 'per_hour', {
         hours,
       })
     } else {
-      baseAmount += calculateBookingTotal(settings.rates, roomHasAirConditioning(room), 'per_hour', {
+      baseAmount += calculateBookingTotal(settings.rates, room, 'per_hour', {
         hours: addH,
       })
     }
@@ -428,8 +428,7 @@ export async function changeBookingRoom(
     throw new Error('Target room is booked for that time')
   }
 
-  const hasAC = roomHasAirConditioning(newRoom)
-  const baseAmount = calculateBookingTotal(settings.rates, hasAC, booking.rateType, {
+  const baseAmount = calculateBookingTotal(settings.rates, newRoom, booking.rateType, {
     hours: booking.hours,
     checkIn: booking.checkIn,
     checkOut: booking.checkOut,
@@ -532,8 +531,11 @@ export async function syncPublicFolio(
     extraCharges: booking.extraCharges ?? [],
     wifiPassword: settings.wifiPassword,
     propertyPhone: settings.phone,
+    checkedOut: booking.status === 'checked_out',
+    ...(settings.suggestionToken ? { suggestionToken: settings.suggestionToken } : {}),
+    feedbackSubmitted: false,
   }
-  await setDoc(doc(db, 'publicFolios', token), folio)
+  await setDoc(doc(db, 'publicFolios', token), folio, { merge: true })
   if (!booking.folioToken) {
     await updateDoc(doc(db, 'properties', propertyId, 'bookings', booking.id), {
       folioToken: token,

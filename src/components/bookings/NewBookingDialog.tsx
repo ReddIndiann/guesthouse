@@ -70,9 +70,8 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
 
   const estimatedTotal = useMemo(() => {
     if (!selectedRoom) return null
-    const hasAC = roomHasAirConditioning(selectedRoom)
     const effectiveCheckOut = isShortStay ? addDaysISO(checkIn, 1) : checkOut || addDaysISO(checkIn, 1)
-    return calculateBookingTotal(settings.rates, hasAC, rateType, {
+    return calculateBookingTotal(settings.rates, selectedRoom, rateType, {
       hours: rateType === 'per_hour' ? hours : undefined,
       checkIn,
       checkOut: effectiveCheckOut,
@@ -158,7 +157,7 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
 
         {selectedRoom && (
           <p className="rounded-lg bg-[var(--color-cream)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            {formatRateSummary(settings.rates, roomHasAirConditioning(selectedRoom))}
+            {formatRateSummary(settings.rates, selectedRoom)}
           </p>
         )}
 
@@ -224,9 +223,9 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
           />
         )}
 
-        {estimatedTotal !== null && (
+        {selectedRoom && (
           <p className="text-sm font-medium text-[var(--color-ink)]">
-            Total: {formatMoney(estimatedTotal)}
+            Total: {formatMoney(estimatedTotal ?? 0)}
             <span className="ml-2 font-normal text-[var(--color-muted)]">
               ({formatBookingRateLabel(rateType, rateType === 'per_hour' ? hours : undefined)})
             </span>

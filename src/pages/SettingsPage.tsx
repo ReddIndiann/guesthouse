@@ -4,7 +4,17 @@ import { Panel } from '../components/ui/Panel'
 import { useRbac } from '../context/RbacContext'
 import { useGuestplace } from '../context/GuestplaceContext'
 import type { PropertyRates, PropertySettings, RoomRateBand } from '../types'
+import { SuggestionQRPanel } from '../components/settings/SuggestionQRPanel'
+import { useAuth } from '../context/AuthContext'
 import { formatMoney } from '../utils/currency'
+
+type RateField = keyof RoomRateBand
+const rateFields: { field: RateField; label: string }[] = [
+  { field: 'oneHour', label: '1 hour' },
+  { field: 'twoHours', label: '2 hours' },
+  { field: 'threeHours', label: '3 hours' },
+  { field: 'fullDay', label: 'Full day' },
+]
 
 function RateBandFields({
   title,
@@ -17,17 +27,11 @@ function RateBandFields({
   onChange: (band: RoomRateBand) => void
   disabled: boolean
 }) {
-  const fields: { key: keyof RoomRateBand; label: string }[] = [
-    { key: 'fullDay', label: 'Full day' },
-    { key: 'perHour', label: 'Per hour' },
-    { key: 'twoHours', label: '2 hours' },
-  ]
-
   return (
     <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
       <p className="mb-3 text-sm font-semibold text-[var(--color-ink)]">{title}</p>
-      <div className="grid gap-3 sm:grid-cols-3">
-        {fields.map(({ key, label }) => (
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+        {rateFields.map(({ field: key, label }) => (
           <label key={key} className="flex flex-col gap-1.5 text-sm">
             <span className="text-[var(--color-muted)]">{label}</span>
             <div className="flex items-center gap-1">
@@ -53,6 +57,7 @@ function RateBandFields({
 
 export function SettingsPage() {
   const { can } = useRbac()
+  const { profile } = useAuth()
   const { settings, updateSettings } = useGuestplace()
   const canEdit = can('rooms.update')
 
@@ -173,6 +178,12 @@ export function SettingsPage() {
               onChange={(ac) => updateRates({ ...form.rates, ac })}
             />
             <RateBandFields
+              title="Air conditioned (King size / Suite)"
+              band={form.rates.acKing}
+              disabled={!canEdit}
+              onChange={(acKing) => updateRates({ ...form.rates, acKing })}
+            />
+            <RateBandFields
               title="Non air conditioned"
               band={form.rates.nonAc}
               disabled={!canEdit}
@@ -204,6 +215,12 @@ export function SettingsPage() {
           )}
         </form>
       </Panel>
+
+      {profile?.propertyId && (
+        <div className="mt-6">
+          <SuggestionQRPanel propertyId={profile.propertyId} settings={settings} />
+        </div>
+      )}
     </div>
   )
 }
