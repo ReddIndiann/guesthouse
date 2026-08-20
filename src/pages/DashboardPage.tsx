@@ -116,25 +116,7 @@ export function DashboardPage() {
             )
           })}
         </div>
-        {cashReport.lines.length === 0 ? (
-          <p className="text-sm text-[var(--color-muted)]">No walk-ins or check-ins yet today.</p>
-        ) : (
-          <ul className="divide-y divide-[var(--color-line)]">
-            {cashReport.lines.map((line) => (
-              <li
-                key={line.bookingId}
-                className="flex flex-wrap items-center justify-between gap-2 py-2 text-sm first:pt-0 last:pb-0"
-              >
-                <span className="text-[var(--color-ink)]">
-                  Room {line.roomNumber} · {line.guestName}
-                </span>
-                <span className="text-[var(--color-muted)]">
-                  {formatMoney(line.amountPaid)} / {formatMoney(line.totalAmount)}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
+
       </Panel>
 
       {cleaningRooms.length > 0 && can('rooms.updateStatus') && (
