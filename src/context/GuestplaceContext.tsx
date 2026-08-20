@@ -272,7 +272,6 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       await preparePostCheckoutFeedback(propertyId, booking, guest, room, settings).catch(
         console.error,
       )
-      setCheckoutFeedback({ booking, guest, room })
       await logActivity(propertyId, {
         action: 'check_out',
         entityType: 'booking',

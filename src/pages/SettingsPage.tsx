@@ -39,7 +39,7 @@ function RateBandFields({
               <input
                 type="number"
                 min={0}
-                value={band[key]}
+                value={band[key] ?? 0}
                 disabled={disabled}
                 onChange={(e) =>
                   onChange({ ...band, [key]: Math.max(0, Number(e.target.value)) })
@@ -47,7 +47,7 @@ function RateBandFields({
                 className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
               />
             </div>
-            <span className="text-xs text-[var(--color-muted)]">{formatMoney(band[key])}</span>
+            <span className="text-xs text-[var(--color-muted)]">{formatMoney(band[key] ?? 0)}</span>
           </label>
         ))}
       </div>

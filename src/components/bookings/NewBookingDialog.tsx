@@ -38,7 +38,7 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const { rooms, settings, createBooking } = useGuestplace()
-  const availableRooms = rooms.filter((r) => r.status === 'available')
+  const availableRooms = rooms.filter((r) => r.status !== 'maintenance')
 
   const [roomId, setRoomId] = useState(preselectedRoomId ?? '')
   const [name, setName] = useState('')

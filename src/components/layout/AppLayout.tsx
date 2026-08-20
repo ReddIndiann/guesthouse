@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react'
-import { NavLink, Outlet } from 'react-router-dom'
+import { useMemo, useState, useEffect } from 'react'
+import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { NewBookingDialog } from '../bookings/NewBookingDialog'
 import { WalkInDialog } from '../bookings/WalkInDialog'
 import { CheckoutFeedbackDialog } from '../suggestions/CheckoutFeedbackDialog'
@@ -34,6 +34,11 @@ export function AppLayout() {
   const { profile, signOut } = useAuth()
   const { can, getRoleName, getGroupName, effectiveRoleId } = useRbac()
   const { loading, error, settings, checkoutFeedback, clearCheckoutFeedback } = useGuestplace()
+  const { pathname } = useLocation()
+
+  useEffect(() => {
+    window.scrollTo(0, 0)
+  }, [pathname])
 
   const navItems = useMemo(() => {
     const items = allNavItems.filter((item) => can(item.permission))

@@ -499,6 +499,13 @@ export async function createBookingRecord(
   const batch = writeBatch(db)
   if (!existingGuestId) {
     batch.set(guestRef, guestData)
+  } else {
+    const updateData: Record<string, string> = {}
+    if (input.guest.phone) updateData.phone = input.guest.phone
+    if (input.guest.email) updateData.email = input.guest.email
+    if (Object.keys(updateData).length > 0) {
+      batch.update(guestRef, updateData)
+    }
   }
   batch.set(bookingRef, bookingData)
   batch.update(doc(propertyCollection(propertyId, 'rooms'), input.roomId), {
