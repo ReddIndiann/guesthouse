@@ -260,7 +260,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
         action: 'check_in',
         entityType: 'booking',
         entityId: bookingId,
-        details: room ? `Room ${room.number}` : undefined,
+        ...(room ? { details: `Room ${room.number}` } : {}),
         performedBy: user?.uid ?? '',
         performedByName: profile?.displayName ?? 'Staff',
       })

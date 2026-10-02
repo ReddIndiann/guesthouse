@@ -48,6 +48,17 @@ function normalizeRoom(data: Room): Room {
   return { ...data, hasAirConditioning }
 }
 
+function cleanUndefined<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const result: Record<string, any> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+
 function normalizePropertySettings(partial?: Partial<PropertySettings>): PropertySettings {
   return {
     ...DEFAULT_PROPERTY_SETTINGS,
@@ -579,11 +590,11 @@ export async function createBranchExpense(
   input: Omit<BranchExpense, 'id' | 'propertyId' | 'createdAt'>,
 ): Promise<string> {
   const ref = doc(propertyCollection(propertyId, 'expenses'))
-  await setDoc(ref, {
+  await setDoc(ref, cleanUndefined({
     ...input,
     propertyId,
     createdAt: new Date().toISOString(),
-  })
+  }))
   return ref.id
 }
 

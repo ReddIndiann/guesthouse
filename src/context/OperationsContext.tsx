@@ -178,11 +178,11 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       await logActivity(propertyId, {
         action,
         entityType,
-        entityId,
-        details,
+        ...(entityId !== undefined ? { entityId } : {}),
+        ...(details !== undefined ? { details } : {}),
         performedBy: actor.uid,
         performedByName: actor.name,
-        shiftId: activeShift?.id,
+        ...(activeShift?.id ? { shiftId: activeShift.id } : {}),
       })
     },
     [propertyId, actor, activeShift],

@@ -73,6 +73,17 @@ function makeChecklist(): HousekeepingChecklistItem[] {
   }))
 }
 
+function cleanUndefined<T extends Record<string, any>>(obj: T): Record<string, any> {
+  const result: Record<string, any> = {}
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = value
+    }
+  }
+  return result
+}
+
+
 export function turnoverMinutes(startedAt?: string, completedAt?: string): number | null {
   if (!startedAt) return null
   const end = completedAt ? new Date(completedAt).getTime() : Date.now()
@@ -177,7 +188,7 @@ export async function logActivity(
   },
 ): Promise<void> {
   const ref = doc(opsCollection(propertyId, 'activityLog'))
-  await setDoc(ref, { ...input, createdAt: new Date().toISOString() })
+  await setDoc(ref, cleanUndefined({ ...input, createdAt: new Date().toISOString() }))
 }
 
 // ── Housekeeping ─────────────────────────────────────────────────
@@ -288,7 +299,7 @@ export async function createShift(
   input: Omit<StaffShift, 'id' | 'createdAt'>,
 ): Promise<string> {
   const ref = doc(opsCollection(propertyId, 'shifts'))
-  await setDoc(ref, { ...input, createdAt: new Date().toISOString() })
+  await setDoc(ref, cleanUndefined({ ...input, createdAt: new Date().toISOString() }))
   return ref.id
 }
 
@@ -335,12 +346,12 @@ export async function closeShiftHandover(
 ): Promise<void> {
   const now = new Date()
   const endTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
-  await updateDoc(doc(opsCollection(propertyId, 'shifts'), shiftId), {
+  await updateDoc(doc(opsCollection(propertyId, 'shifts'), shiftId), cleanUndefined({
     ...data,
     endTime,
     status: 'closed',
     closedAt: now.toISOString(),
-  })
+  }))
 }
 
 export async function deleteShift(propertyId: string, shiftId: string): Promise<void> {
