@@ -157,6 +157,12 @@ export interface StaffProfile {
   groupId?: string
   createdAt: string
   createdBy?: string
+  isSuperAdmin?: boolean
+  organizationId?: string
+  organizationName?: string
+  accessibleProperties?: string[]
+  userType?: 'super_admin' | 'org_admin' | 'staff'
+  pendingApproval?: boolean
 }
 
 export interface StaffAssignment {

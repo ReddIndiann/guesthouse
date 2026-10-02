@@ -19,7 +19,7 @@ import type { User } from 'firebase/auth'
 import { seedDefaultRoles, ensureSystemAdminRole } from './accessControl'
 import type { StaffProfile } from '../types/auth'
 import { SYSTEM_ADMIN_ROLE_ID } from '../types/auth'
-import type { Booking, Communication, Guest, HousekeepingChecklistItem, MessageTemplate, MessageTemplateInput, NewBookingInput, NewCommunicationInput, PropertySettings, Room, RoomInput, RoomStatus } from '../types'
+import type { Booking, BranchExpense, Communication, Guest, HousekeepingChecklistItem, MessageTemplate, MessageTemplateInput, MoMoProvider, NewBookingInput, NewCommunicationInput, PaymentMethod, PropertySettings, Room, RoomInput, RoomStatus } from '../types'
 import { DEFAULT_HOUSEKEEPING_CHECKLIST } from '../types'
 import { DEFAULT_PROPERTY_SETTINGS } from '../types'
 import { hasRoomConflict, normalizeBooking, normalizePayment } from '../utils/bookings'
@@ -29,7 +29,7 @@ import { todayISO } from '../utils/dates'
 import { calculateBookingTotal, mergePropertyRates, roomHasAirConditioning } from '../utils/pricing'
 import { db } from './firebase'
 
-type PropertyCollection = 'rooms' | 'guests' | 'bookings' | 'communications' | 'messageTemplates'
+type PropertyCollection = 'rooms' | 'guests' | 'bookings' | 'communications' | 'messageTemplates' | 'expenses'
 
 function propertyDoc(propertyId: string) {
   return doc(db, 'properties', propertyId)
@@ -64,8 +64,26 @@ export async function loadStaffProfile(uid: string): Promise<StaffProfile | null
 }
 
 function normalizeStaffProfile(uid: string, data: Record<string, unknown>): StaffProfile {
+  const isSuperAdmin = Boolean(
+    data.isSuperAdmin === true ||
+    data.userType === 'super_admin' ||
+    data.roleId === SYSTEM_ADMIN_ROLE_ID ||
+    data.role === 'admin'
+  )
+  const propId = (data.propertyId as string) ?? ''
+  const accessibleProperties = Array.isArray(data.accessibleProperties)
+    ? (data.accessibleProperties as string[])
+    : propId
+      ? [propId]
+      : []
+
   if (data.assignmentType) {
-    return { uid, ...data } as StaffProfile
+    return {
+      uid,
+      isSuperAdmin,
+      accessibleProperties,
+      ...data,
+    } as StaffProfile
   }
 
   const legacyRole = data.role as string | undefined
@@ -80,11 +98,17 @@ function normalizeStaffProfile(uid: string, data: Record<string, unknown>): Staf
     uid,
     email: (data.email as string) ?? '',
     displayName: (data.displayName as string) ?? '',
-    propertyId: (data.propertyId as string) ?? '',
+    propertyId: propId,
     assignmentType: 'direct',
     roleId: legacyRole ? legacyMap[legacyRole] ?? 'template-viewer' : undefined,
     createdAt: (data.createdAt as string) ?? new Date().toISOString(),
     createdBy: data.createdBy as string | undefined,
+    isSuperAdmin,
+    organizationId: data.organizationId as string | undefined,
+    organizationName: data.organizationName as string | undefined,
+    accessibleProperties,
+    userType: (data.userType as 'super_admin' | 'org_admin' | 'staff') ?? (isSuperAdmin ? 'super_admin' : 'staff'),
+    pendingApproval: data.pendingApproval as boolean | undefined,
   }
 }
 
@@ -94,25 +118,29 @@ export async function ensureStaffProfile(user: User): Promise<StaffProfile> {
 
   const allStaff = await getDocs(collection(db, 'staff'))
   if (!allStaff.empty) {
-    throw new Error('No access. Ask an administrator to create your account.')
+    throw new Error('No access. Ask an administrator to create your account or register your organization.')
   }
 
   const propertyId = user.uid
   await seedDefaultRoles(propertyId)
   await ensureSystemAdminRole(propertyId)
 
-  const profile = {
+  const profile: StaffProfile = {
+    uid: user.uid,
     email: user.email ?? '',
     displayName: user.displayName ?? user.email?.split('@')[0] ?? 'Admin',
-    assignmentType: 'direct' as const,
+    assignmentType: 'direct',
     roleId: SYSTEM_ADMIN_ROLE_ID,
     propertyId,
     createdAt: new Date().toISOString(),
+    isSuperAdmin: true,
+    userType: 'super_admin',
+    accessibleProperties: [propertyId],
   }
 
   await setDoc(doc(db, 'staff', user.uid), profile)
   await setDoc(propertyDoc(propertyId), { settings: DEFAULT_PROPERTY_SETTINGS }, { merge: true })
-  return { uid: user.uid, ...profile }
+  return profile
 }
 
 export function subscribeToStaff(
@@ -307,9 +335,18 @@ export async function updateBookingPayment(
   bookingId: string,
   amountPaid: number,
   totalAmount: number,
+  details?: {
+    paymentMethod?: PaymentMethod
+    momoProvider?: MoMoProvider
+    paymentReference?: string
+  },
 ): Promise<void> {
   const payment = normalizePayment(totalAmount, amountPaid)
-  await updateDoc(doc(propertyCollection(propertyId, 'bookings'), bookingId), payment)
+  const updates: Record<string, unknown> = { ...payment }
+  if (details?.paymentMethod) updates.paymentMethod = details.paymentMethod
+  if (details?.momoProvider) updates.momoProvider = details.momoProvider
+  if (details?.paymentReference) updates.paymentReference = details.paymentReference
+  await updateDoc(doc(propertyCollection(propertyId, 'bookings'), bookingId), updates)
 }
 
 export async function createRoomRecord(propertyId: string, input: RoomInput): Promise<string> {
@@ -492,6 +529,9 @@ export async function createBookingRecord(
     totalAmount,
     amountPaid: payment.amountPaid,
     paymentStatus: payment.paymentStatus,
+    ...(input.paymentMethod ? { paymentMethod: input.paymentMethod } : {}),
+    ...(input.momoProvider ? { momoProvider: input.momoProvider } : {}),
+    ...(input.paymentReference ? { paymentReference: input.paymentReference } : {}),
     extraCharges: [],
     ...(input.notes ? { notes: input.notes } : {}),
   }
@@ -503,6 +543,7 @@ export async function createBookingRecord(
     const updateData: Record<string, string> = {}
     if (input.guest.phone) updateData.phone = input.guest.phone
     if (input.guest.email) updateData.email = input.guest.email
+    if (input.guest.idNumber) updateData.idNumber = input.guest.idNumber
     if (Object.keys(updateData).length > 0) {
       batch.update(guestRef, updateData)
     }
@@ -513,4 +554,42 @@ export async function createBookingRecord(
   })
   await batch.commit()
   return bookingRef.id
+}
+
+// ── Branch Expenses ────────────────────────────────────────────────
+
+export function subscribeToBranchExpenses(
+  propertyId: string,
+  onData: (expenses: BranchExpense[]) => void,
+  onError: (error: Error) => void,
+): Unsubscribe {
+  return onSnapshot(
+    propertyCollection(propertyId, 'expenses'),
+    (snapshot) => {
+      const items = snapshot.docs.map((d) => mapDoc<BranchExpense>(d))
+      items.sort((a, b) => (b.date || '').localeCompare(a.date || '') || (b.createdAt || '').localeCompare(a.createdAt || ''))
+      onData(items)
+    },
+    (err) => onError(err),
+  )
+}
+
+export async function createBranchExpense(
+  propertyId: string,
+  input: Omit<BranchExpense, 'id' | 'propertyId' | 'createdAt'>,
+): Promise<string> {
+  const ref = doc(propertyCollection(propertyId, 'expenses'))
+  await setDoc(ref, {
+    ...input,
+    propertyId,
+    createdAt: new Date().toISOString(),
+  })
+  return ref.id
+}
+
+export async function deleteBranchExpense(
+  propertyId: string,
+  expenseId: string,
+): Promise<void> {
+  await deleteDoc(doc(propertyCollection(propertyId, 'expenses'), expenseId))
 }

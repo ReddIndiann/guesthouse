@@ -37,6 +37,8 @@ export interface PropertySettings {
   wifiPassword?: string
   lastNightAuditDate?: string
   suggestionToken?: string
+  accentColor?: string
+  colorThemeId?: string
 }
 
 export interface PublicSuggestionForm {
@@ -113,6 +115,9 @@ export interface BookingCharge {
   addedByName: string
 }
 
+export type PaymentMethod = 'cash' | 'momo' | 'card' | 'bank_transfer'
+export type MoMoProvider = 'mtn' | 'telecel' | 'at'
+
 export interface Booking {
   id: string
   guestId: string
@@ -128,6 +133,9 @@ export interface Booking {
   totalAmount: number
   amountPaid: number
   paymentStatus: PaymentStatus
+  paymentMethod?: PaymentMethod
+  momoProvider?: MoMoProvider
+  paymentReference?: string
   extraCharges?: BookingCharge[]
   folioToken?: string
   isOverstay?: boolean
@@ -148,6 +156,8 @@ export interface PublicFolio {
   totalAmount: number
   amountPaid: number
   paymentStatus: PaymentStatus
+  paymentMethod?: PaymentMethod
+  paymentReference?: string
   extraCharges: BookingCharge[]
   wifiPassword?: string
   propertyPhone?: string
@@ -166,6 +176,9 @@ export interface NewBookingInput {
   rateType: BookingRateType
   hours?: number
   amountPaid?: number
+  paymentMethod?: PaymentMethod
+  momoProvider?: MoMoProvider
+  paymentReference?: string
   walkIn?: boolean
   notes?: string
 }
@@ -296,6 +309,41 @@ export interface StaffShift {
   startTime: string
   endTime: string
   role?: string
+  status?: 'active' | 'closed'
+  openingFloat?: number
+  closingCash?: number
+  expectedCash?: number
+  cashDifference?: number
+  totalMomoCollected?: number
+  totalCardCollected?: number
+  totalCheckIns?: number
+  handoverNotes?: string
+  closedAt?: string
+  createdAt: string
+}
+
+export type ExpenseCategory =
+  | 'generator_fuel'
+  | 'ecg_electricity'
+  | 'water_supply'
+  | 'cleaning_supplies'
+  | 'maintenance'
+  | 'food_beverage'
+  | 'staff_welfare'
+  | 'other'
+
+export interface BranchExpense {
+  id: string
+  propertyId: string
+  title: string
+  category: ExpenseCategory
+  amount: number
+  paymentMethod: 'cash' | 'momo' | 'bank'
+  receiptRef?: string
+  notes?: string
+  recordedBy: string
+  recordedByName: string
+  date: string
   createdAt: string
 }
 

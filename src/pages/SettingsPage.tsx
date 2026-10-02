@@ -5,8 +5,11 @@ import { useRbac } from '../context/RbacContext'
 import { useGuestplace } from '../context/GuestplaceContext'
 import type { PropertyRates, PropertySettings, RoomRateBand } from '../types'
 import { SuggestionQRPanel } from '../components/settings/SuggestionQRPanel'
+import { ThemeSelector } from '../components/settings/ThemeSelector'
 import { useAuth } from '../context/AuthContext'
+import { useTenant } from '../context/TenantContext'
 import { formatMoney } from '../utils/currency'
+import { applyThemeToDocument } from '../utils/theme'
 
 type RateField = keyof RoomRateBand
 const rateFields: { field: RateField; label: string }[] = [
@@ -58,8 +61,9 @@ function RateBandFields({
 export function SettingsPage() {
   const { can } = useRbac()
   const { profile } = useAuth()
+  const { currentProperty, currentPropertyId, organization, isOrgAdmin, isSuperAdmin } = useTenant()
   const { settings, updateSettings } = useGuestplace()
-  const canEdit = can('rooms.update')
+  const canEdit = can('rooms.update') || isSuperAdmin || isOrgAdmin
 
   const [form, setForm] = useState<PropertySettings>(settings)
   const [saved, setSaved] = useState(false)
@@ -90,14 +94,39 @@ export function SettingsPage() {
     }
   }
 
+  const branchDisplayName = currentProperty?.name || form.name || 'Branch'
+  const branchDisplayCode = currentProperty?.code
+
   return (
     <div>
-      <PageHeader title="Settings" subtitle="Your guest house details and room rates" />
+      <PageHeader
+        title="Branch Settings"
+        subtitle={`Configure details and rates for ${branchDisplayName}${branchDisplayCode ? ` (${branchDisplayCode})` : ''}`}
+      />
 
       <Panel>
+        {/* Branch Context Banner */}
+        <div className="mb-6 rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-3 text-xs flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+          <div className="flex items-center gap-2">
+            <span className="font-semibold text-[var(--color-ink)]">Current Branch:</span>
+            <span className="font-medium text-[var(--color-ink)]">{branchDisplayName}</span>
+            {branchDisplayCode && (
+              <span className="rounded bg-white px-1.5 py-0.5 font-mono text-[10px] border border-[var(--color-line)] text-[var(--color-muted)]">
+                {branchDisplayCode}
+              </span>
+            )}
+            {organization?.name && (
+              <span className="text-[var(--color-accent)] font-medium">· {organization.name}</span>
+            )}
+          </div>
+          <span className="text-[11px] text-[var(--color-muted)]">
+            Rates and settings configured here apply uniquely to this branch.
+          </span>
+        </div>
+
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Property</h2>
+            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Property Profile</h2>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium">Property name</span>
               <input
@@ -166,6 +195,19 @@ export function SettingsPage() {
             </div>
           </div>
 
+          {/* Theme & Brand Color */}
+          <div className="pt-2 border-t border-[var(--color-line)]">
+            <ThemeSelector
+              valueThemeId={form.colorThemeId}
+              valueAccentColor={form.accentColor}
+              disabled={!canEdit}
+              onChange={(colorThemeId, accentColor) => {
+                setForm((f) => ({ ...f, colorThemeId, accentColor }))
+                applyThemeToDocument(accentColor, colorThemeId)
+              }}
+            />
+          </div>
+
           <div className="space-y-4">
             <h2 className="text-sm font-semibold text-[var(--color-ink)]">Room rates (₵)</h2>
             <p className="text-sm text-[var(--color-muted)]">
@@ -210,15 +252,16 @@ export function SettingsPage() {
             </button>
           ) : (
             <p className="text-sm text-[var(--color-muted)]">
-              Ask a manager to update property settings.
+              Ask a manager or administrator of {branchDisplayName} to update property settings.
+              {profile?.displayName && ` (Signed in as ${profile.displayName})`}
             </p>
           )}
         </form>
       </Panel>
 
-      {profile?.propertyId && (
+      {currentPropertyId && (
         <div className="mt-6">
-          <SuggestionQRPanel propertyId={profile.propertyId} settings={settings} />
+          <SuggestionQRPanel propertyId={currentPropertyId} settings={settings} />
         </div>
       )}
     </div>

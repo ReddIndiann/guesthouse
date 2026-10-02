@@ -3,9 +3,13 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import { NewBookingDialog } from '../bookings/NewBookingDialog'
 import { WalkInDialog } from '../bookings/WalkInDialog'
 import { CheckoutFeedbackDialog } from '../suggestions/CheckoutFeedbackDialog'
+import { PropertySwitcher } from './PropertySwitcher'
 import { useAuth } from '../../context/AuthContext'
 import { useRbac } from '../../context/RbacContext'
 import { useGuestplace } from '../../context/GuestplaceContext'
+import { useOperations } from '../../context/OperationsContext'
+import { useTenant } from '../../context/TenantContext'
+import { ShiftHandoverModal } from '../operations/ShiftHandoverModal'
 import type { Permission } from '../../types/auth'
 
 const allNavItems: { to: string; label: string; permission: Permission }[] = [
@@ -30,10 +34,13 @@ const navLinkClass = ({ isActive }: { isActive: boolean }) =>
 export function AppLayout() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [walkInOpen, setWalkInOpen] = useState(false)
+  const [shiftModalOpen, setShiftModalOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(false)
   const { profile, signOut } = useAuth()
   const { can, getRoleName, getGroupName, effectiveRoleId } = useRbac()
   const { loading, error, settings, checkoutFeedback, clearCheckoutFeedback } = useGuestplace()
+  const { activeShift } = useOperations()
+  const { currentPropertyId, currentProperty } = useTenant()
   const { pathname } = useLocation()
 
   useEffect(() => {
@@ -67,16 +74,27 @@ export function AppLayout() {
       )}
 
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--color-line)] bg-white transition-transform duration-200 md:static md:z-auto md:shrink-0 md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-[var(--color-line)] bg-white transition-transform duration-200 md:sticky md:top-0 md:h-dvh md:z-auto md:shrink-0 md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="border-b border-[var(--color-line)] px-5 py-5">
-          <p className="truncate text-lg font-semibold tracking-tight text-[var(--color-ink)]">
-            {settings.name || 'Guestplace'}
-          </p>
+        <div className="border-b border-[var(--color-line)] px-5 py-4 space-y-2.5">
+          <div className="flex items-center justify-between">
+            <p className="truncate text-base font-bold tracking-tight text-[var(--color-ink)]">
+              Guestplace
+            </p>
+            {profile?.isSuperAdmin && (
+              <NavLink
+                to="/admin"
+                className="rounded-full bg-[var(--color-cream)] border border-[var(--color-line)] px-2.5 py-0.5 text-[11px] font-medium text-[var(--color-ink)] hover:border-[var(--color-muted)] transition"
+              >
+                Admin
+              </NavLink>
+            )}
+          </div>
+          <PropertySwitcher />
           {profile && (
-            <p className="mt-1 truncate text-xs text-[var(--color-muted)]">
+            <p className="truncate text-xs text-[var(--color-muted)]">
               {profile.displayName} · {accessLabel}
             </p>
           )}
@@ -97,6 +115,22 @@ export function AppLayout() {
         </nav>
 
         <div className="space-y-2 border-t border-[var(--color-line)] p-4">
+          {/* Shift & Drawer Button */}
+          <button
+            type="button"
+            onClick={() => {
+              setShiftModalOpen(true)
+              closeSidebar()
+            }}
+            className="flex items-center justify-between w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--color-ink)] hover:bg-[var(--color-cream)] transition shadow-sm"
+          >
+            <span className="flex items-center gap-2">
+              <span className={`h-2 w-2 rounded-full ${activeShift ? 'bg-emerald-500 animate-pulse' : 'bg-amber-400'}`} />
+              <span>{activeShift ? 'Active Shift Drawer' : 'Front Desk Shift'}</span>
+            </span>
+            <span className="text-[10px] text-[var(--color-muted)] font-normal">Reconcile</span>
+          </button>
+
           {can('bookings.create') && (
             <>
               <button
@@ -105,7 +139,7 @@ export function AppLayout() {
                   setWalkInOpen(true)
                   closeSidebar()
                 }}
-                className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2.5 text-sm font-medium text-white active:scale-[0.98]"
+                className="w-full rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white active:scale-[0.98]"
               >
                 Walk-in
               </button>
@@ -115,16 +149,28 @@ export function AppLayout() {
                   setBookingOpen(true)
                   closeSidebar()
                 }}
-                className="w-full rounded-lg border border-[var(--color-line)] bg-white px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] active:scale-[0.98]"
+                className="w-full rounded-lg border border-[var(--color-line)] bg-white px-4 py-2 text-sm font-medium text-[var(--color-ink)] active:scale-[0.98]"
               >
                 + Book ahead
               </button>
             </>
           )}
+
+          {currentPropertyId && (
+            <a
+              href={`/stay/${currentProperty?.code || currentPropertyId}`}
+              target="_blank"
+              rel="noreferrer"
+              className="flex items-center justify-center gap-1 w-full rounded-lg py-1.5 text-xs text-[var(--color-muted)] hover:text-[var(--color-ink)] transition"
+            >
+              <span>🌐</span> Public Guest Page ↗
+            </a>
+          )}
+
           <button
             type="button"
             onClick={() => signOut()}
-            className="w-full rounded-lg px-4 py-2 text-sm text-[var(--color-muted)] hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
+            className="w-full rounded-lg px-4 py-1.5 text-xs text-[var(--color-muted)] hover:bg-[var(--color-cream)] hover:text-[var(--color-ink)]"
           >
             Log out
           </button>
@@ -148,6 +194,14 @@ export function AppLayout() {
               {settings.name || 'Guestplace'}
             </p>
           </div>
+          {profile?.isSuperAdmin && (
+            <NavLink
+              to="/admin"
+              className="rounded-full bg-[var(--color-cream)] border border-[var(--color-line)] px-2.5 py-1 text-[11px] font-medium text-[var(--color-ink)] shrink-0"
+            >
+              Admin
+            </NavLink>
+          )}
           {can('bookings.create') && (
             <button
               type="button"
@@ -189,6 +243,11 @@ export function AppLayout() {
           onClose={clearCheckoutFeedback}
         />
       )}
+
+      <ShiftHandoverModal
+        open={shiftModalOpen}
+        onClose={() => setShiftModalOpen(false)}
+      />
     </div>
   )
 }

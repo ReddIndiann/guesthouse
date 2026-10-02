@@ -1,7 +1,8 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from 'react-router-dom'
 import { ProtectedRoute } from './components/auth/ProtectedRoute'
 import { AppLayout } from './components/layout/AppLayout'
 import { AuthProvider } from './context/AuthContext'
+import { TenantProvider } from './context/TenantContext'
 import { RbacProvider, useRbac } from './context/RbacContext'
 import { GuestplaceProvider } from './context/GuestplaceContext'
 import { OperationsProvider } from './context/OperationsContext'
@@ -17,6 +18,8 @@ import { HousekeepingPage } from './pages/HousekeepingPage'
 import { ReportsPage } from './pages/ReportsPage'
 import { FolioPage } from './pages/FolioPage'
 import { SuggestionPage } from './pages/SuggestionPage'
+import { PublicStayPage } from './pages/PublicStayPage'
+import { AdminGuard } from './pages/admin/AdminGuard'
 
 function AccessGuard() {
   const { can, loading } = useRbac()
@@ -25,6 +28,14 @@ function AccessGuard() {
     return <Navigate to="/" replace />
   }
   return <AccessPage />
+}
+
+function TenantShell() {
+  return (
+    <TenantProvider>
+      <Outlet />
+    </TenantProvider>
+  )
 }
 
 function AppShell() {
@@ -47,17 +58,21 @@ function App() {
           <Route path="/login" element={<LoginPage />} />
           <Route path="/folio/:token" element={<FolioPage />} />
           <Route path="/suggestions/:token" element={<SuggestionPage />} />
+          <Route path="/stay/:identifier" element={<PublicStayPage />} />
           <Route element={<ProtectedRoute />}>
-            <Route element={<AppShell />}>
-              <Route index element={<DashboardPage />} />
-              <Route path="rooms" element={<RoomsPage />} />
-              <Route path="bookings" element={<BookingsPage />} />
-              <Route path="guests" element={<GuestsPage />} />
-              <Route path="messages" element={<MessagesPage />} />
-              <Route path="settings" element={<SettingsPage />} />
-              <Route path="housekeeping" element={<HousekeepingPage />} />
-              <Route path="reports" element={<ReportsPage />} />
-              <Route path="access" element={<AccessGuard />} />
+            <Route element={<TenantShell />}>
+              <Route path="admin" element={<AdminGuard />} />
+              <Route element={<AppShell />}>
+                <Route index element={<DashboardPage />} />
+                <Route path="rooms" element={<RoomsPage />} />
+                <Route path="bookings" element={<BookingsPage />} />
+                <Route path="guests" element={<GuestsPage />} />
+                <Route path="messages" element={<MessagesPage />} />
+                <Route path="settings" element={<SettingsPage />} />
+                <Route path="housekeeping" element={<HousekeepingPage />} />
+                <Route path="reports" element={<ReportsPage />} />
+                <Route path="access" element={<AccessGuard />} />
+              </Route>
             </Route>
           </Route>
           <Route path="users" element={<Navigate to="/access" replace />} />

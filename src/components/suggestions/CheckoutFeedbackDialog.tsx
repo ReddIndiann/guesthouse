@@ -8,7 +8,15 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import QRCode from 'react-qr-code'
+import RawQRCode from 'react-qr-code'
+
+// Handle ESM/CJS interop for react-qr-code
+const QRCode = (
+  (RawQRCode as any).default?.default ||
+  (RawQRCode as any).default ||
+  (RawQRCode as any).QRCode ||
+  RawQRCode
+) as React.ComponentType<{ value: string; size?: number; className?: string }>
 import { ensureSuggestionToken, suggestionFormUrl } from '../../lib/suggestions'
 import type { Booking, Guest, PropertySettings, Room } from '../../types'
 

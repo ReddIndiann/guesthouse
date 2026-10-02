@@ -26,20 +26,36 @@ service cloud.firestore {
         : staff.roleId;
     }
 
+    function isSuperAdmin() {
+      return hasStaffProfile() && (
+        staffDoc().data.isSuperAdmin == true ||
+        staffDoc().data.userType == 'super_admin'
+      );
+    }
+
+    function canAccessProperty(propertyId) {
+      return hasStaffProfile() && (
+        isSuperAdmin() ||
+        staffPropertyId() == propertyId ||
+        (staffDoc().data.accessibleProperties != null && propertyId in staffDoc().data.accessibleProperties)
+      );
+    }
+
     function rolePermissions() {
       return get(/databases/$(database)/documents/properties/$(staffPropertyId())/roles/$(effectiveRoleId())).data.permissions;
     }
 
     function hasPermission(perm) {
-      return hasStaffProfile() && perm in rolePermissions();
+      return hasStaffProfile() && (isSuperAdmin() || perm in rolePermissions());
     }
 
     function canManageAccess() {
-      return hasPermission('roles.manage') || hasPermission('groups.manage') || hasPermission('users.create');
+      return isSuperAdmin() || hasPermission('roles.manage') || hasPermission('groups.manage') || hasPermission('users.create');
     }
 
     function canWriteProperty() {
-      return hasPermission('rooms.updateStatus')
+      return isSuperAdmin()
+        || hasPermission('rooms.updateStatus')
         || hasPermission('rooms.create')
         || hasPermission('rooms.update')
         || hasPermission('rooms.delete')
@@ -52,98 +68,112 @@ service cloud.firestore {
     }
 
     function canManageHousekeeping() {
-      return hasPermission('housekeeping.manage');
+      return isSuperAdmin() || hasPermission('housekeeping.manage');
     }
 
     function canManageShifts() {
-      return hasPermission('shifts.manage');
+      return isSuperAdmin() || hasPermission('shifts.manage');
+    }
+
+    match /organizations/{orgId} {
+      allow read: if isSignedIn() && (
+        isSuperAdmin() ||
+        request.auth.uid == resource.data.ownerUid ||
+        (hasStaffProfile() && staffDoc().data.organizationId == orgId)
+      );
+      allow create: if isSignedIn();
+      allow update, delete: if isSuperAdmin() || (
+        hasStaffProfile() && staffDoc().data.organizationId == orgId && staffDoc().data.userType == 'org_admin'
+      );
     }
 
     match /staff/{uid} {
       allow read: if isSignedIn() && (
+        isSuperAdmin() ||
         request.auth.uid == uid ||
-        (hasStaffProfile() && staffDoc().data.propertyId == resource.data.propertyId)
+        (hasStaffProfile() && staffDoc().data.propertyId == resource.data.propertyId) ||
+        (hasStaffProfile() && staffDoc().data.organizationId != null && staffDoc().data.organizationId == resource.data.organizationId)
       );
       allow create: if isSignedIn() && (
+        isSuperAdmin() ||
         request.auth.uid == uid ||
         (hasStaffProfile() && hasPermission('users.create') && request.resource.data.propertyId == staffPropertyId())
       );
-      allow update: if hasStaffProfile() && hasPermission('users.assign')
-        && resource.data.propertyId == staffPropertyId();
-      allow delete: if false;
+      allow update: if isSuperAdmin() || (
+        hasStaffProfile() && hasPermission('users.assign') && resource.data.propertyId == staffPropertyId()
+      );
+      allow delete: if isSuperAdmin();
     }
 
     match /properties/{propertyId}/roles/{roleId} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId;
-      allow create, update, delete: if hasStaffProfile()
-        && staffPropertyId() == propertyId
+      allow read: if canAccessProperty(propertyId);
+      allow create, update, delete: if canAccessProperty(propertyId)
         && hasPermission('roles.manage')
         && (roleId != 'system-admin' || resource == null);
     }
 
     match /properties/{propertyId}/groups/{groupId} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId;
-      allow create, update, delete: if hasStaffProfile()
-        && staffPropertyId() == propertyId
+      allow read: if canAccessProperty(propertyId);
+      allow create, update, delete: if canAccessProperty(propertyId)
         && hasPermission('groups.manage');
     }
 
     match /properties/{propertyId}/rooms/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('rooms.view');
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+      allow read: if canAccessProperty(propertyId) && hasPermission('rooms.view');
+      allow write: if canAccessProperty(propertyId) && canWriteProperty();
     }
 
     match /properties/{propertyId}/guests/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('guests.view');
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+      allow read: if canAccessProperty(propertyId) && hasPermission('guests.view');
+      allow write: if canAccessProperty(propertyId) && canWriteProperty();
     }
 
     match /properties/{propertyId}/bookings/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.view');
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+      allow read: if canAccessProperty(propertyId) && hasPermission('bookings.view');
+      allow write: if canAccessProperty(propertyId) && canWriteProperty();
     }
 
     match /properties/{propertyId}/communications/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('guests.view');
-      allow create: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.create');
+      allow read: if canAccessProperty(propertyId) && hasPermission('guests.view');
+      allow create: if canAccessProperty(propertyId) && hasPermission('bookings.create');
       allow update, delete: if false;
     }
 
     match /properties/{propertyId}/messageTemplates/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('guests.view');
-      allow create, update, delete: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('bookings.create');
+      allow read: if canAccessProperty(propertyId) && hasPermission('guests.view');
+      allow create, update, delete: if canAccessProperty(propertyId) && hasPermission('bookings.create');
     }
 
     match /properties/{propertyId}/housekeepingTasks/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('housekeeping.view');
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canManageHousekeeping();
+      allow read: if canAccessProperty(propertyId) && hasPermission('housekeeping.view');
+      allow write: if canAccessProperty(propertyId) && canManageHousekeeping();
     }
 
     match /properties/{propertyId}/maintenanceTickets/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('housekeeping.view');
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canManageHousekeeping();
+      allow read: if canAccessProperty(propertyId) && hasPermission('housekeeping.view');
+      allow write: if canAccessProperty(propertyId) && canManageHousekeeping();
     }
 
     match /properties/{propertyId}/activityLog/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('audit.view');
-      allow create: if hasStaffProfile() && staffPropertyId() == propertyId && canWriteProperty();
+      allow read: if canAccessProperty(propertyId) && hasPermission('audit.view');
+      allow create: if canAccessProperty(propertyId) && canWriteProperty();
       allow update, delete: if false;
     }
 
     match /properties/{propertyId}/shifts/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && (hasPermission('audit.view') || canManageShifts());
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && canManageShifts();
+      allow read: if canAccessProperty(propertyId) && (hasPermission('audit.view') || canManageShifts());
+      allow write: if canAccessProperty(propertyId) && canManageShifts();
     }
 
     match /properties/{propertyId}/nightAudits/{document=**} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('reports.view');
-      allow create: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('reports.view');
+      allow read: if canAccessProperty(propertyId) && hasPermission('reports.view');
+      allow create: if canAccessProperty(propertyId) && hasPermission('reports.view');
       allow update, delete: if false;
     }
 
     match /properties/{propertyId} {
-      allow read: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('dashboard.view');
-      allow write: if hasStaffProfile() && staffPropertyId() == propertyId && hasPermission('rooms.update');
+      allow read: if canAccessProperty(propertyId);
+      allow write: if canAccessProperty(propertyId) && (isSuperAdmin() || hasPermission('rooms.update'));
     }
 
     match /publicFolios/{token} {

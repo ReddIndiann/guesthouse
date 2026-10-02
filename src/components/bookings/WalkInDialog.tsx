@@ -54,6 +54,10 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
   const [nights, setNights] = useState(1)
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
+  const [idNumber, setIdNumber] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'momo' | 'card' | 'bank_transfer'>('cash')
+  const [momoProvider, setMomoProvider] = useState<'mtn' | 'telecel' | 'at'>('mtn')
+  const [paymentReference, setPaymentReference] = useState('')
   const [amountPaid, setAmountPaid] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -98,6 +102,10 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
     setHours(1)
     setName('')
     setPhone('')
+    setIdNumber('')
+    setPaymentMethod('cash')
+    setMomoProvider('mtn')
+    setPaymentReference('')
     setAmountPaid('')
     setError(null)
   }
@@ -127,8 +135,16 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
         rateType,
         hours: rateType === 'per_hour' ? hours : undefined,
         amountPaid: paid,
+        paymentMethod,
+        momoProvider: paymentMethod === 'momo' ? momoProvider : undefined,
+        paymentReference: paymentReference.trim() || undefined,
         walkIn: true,
-        guest: { name: name.trim(), email: '', phone },
+        guest: {
+          name: name.trim(),
+          email: '',
+          phone: phone.trim(),
+          idNumber: idNumber.trim() || undefined,
+        },
       })
 
       setPendingReceiptId(bookingId)
@@ -270,9 +286,83 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
               <input
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
-                placeholder="Phone (optional)"
+                placeholder="Phone (WhatsApp enabled)"
                 className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 text-sm"
               />
+              <input
+                value={idNumber}
+                onChange={(e) => setIdNumber(e.target.value)}
+                placeholder="Ghana Card / ID Number (Optional)"
+                className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 text-sm"
+              />
+
+              <div className="space-y-2">
+                <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">
+                  Payment Method
+                </span>
+                <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+                  {[
+                    { id: 'cash', label: 'Cash' },
+                    { id: 'momo', label: 'MoMo' },
+                    { id: 'card', label: 'Card' },
+                    { id: 'bank_transfer', label: 'Bank' },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(m.id as any)}
+                      className={`rounded-lg border px-2 py-2 text-xs font-medium transition ${
+                        paymentMethod === m.id
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)] font-semibold'
+                          : 'border-[var(--color-line)] bg-white text-[var(--color-ink)]'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+
+                {paymentMethod === 'momo' && (
+                  <div className="rounded-xl border border-[var(--color-line)] bg-white p-3 space-y-2.5">
+                    <div className="flex gap-2">
+                      {[
+                        { id: 'mtn', label: 'MTN MoMo' },
+                        { id: 'telecel', label: 'Telecel Cash' },
+                        { id: 'at', label: 'AT Money' },
+                      ].map((prov) => (
+                        <button
+                          key={prov.id}
+                          type="button"
+                          onClick={() => setMomoProvider(prov.id as any)}
+                          className={`flex-1 rounded-md py-1.5 text-xs font-medium border ${
+                            momoProvider === prov.id
+                              ? 'border-amber-500 bg-amber-50 text-amber-900 font-semibold'
+                              : 'border-[var(--color-line)] text-[var(--color-muted)]'
+                          }`}
+                        >
+                          {prov.label}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      placeholder="MoMo Transaction ID / Reference"
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-xs"
+                    />
+                  </div>
+                )}
+
+                {paymentMethod === 'card' && (
+                  <input
+                    value={paymentReference}
+                    onChange={(e) => setPaymentReference(e.target.value)}
+                    placeholder="POS Approval / Card Reference (Optional)"
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-xs"
+                  />
+                )}
+              </div>
+
               <label className="flex flex-col gap-1.5 text-sm">
                 <span className="font-medium">Amount paid now</span>
                 <div className="flex items-center gap-2">

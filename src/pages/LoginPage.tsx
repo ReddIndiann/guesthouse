@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { Navigate } from 'react-router-dom'
 import { useAuth } from '../context/AuthContext'
 import { LoadingScreen } from '../components/ui/LoadingScreen'
+import { RegisterOrgModal } from '../components/auth/RegisterOrgModal'
 
 export function LoginPage() {
   const { user, profile, loading, profileError, signIn } = useAuth()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
+  const [registerOpen, setRegisterOpen] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -76,13 +78,37 @@ export function LoginPage() {
             <button
               type="submit"
               disabled={submitting}
-              className="mt-1 w-full rounded-lg bg-[var(--color-accent)] py-2.5 text-sm font-medium text-white disabled:opacity-60"
+              className="mt-1 w-full rounded-lg bg-[var(--color-accent)] py-2.5 text-sm font-medium text-white disabled:opacity-60 hover:opacity-95 transition"
             >
               {submitting ? 'Please wait…' : 'Sign in'}
             </button>
           </div>
         </form>
+
+        <div className="mt-6 text-center space-y-3">
+          <div className="relative flex items-center justify-center">
+            <div className="absolute inset-0 flex items-center">
+              <div className="w-full border-t border-[var(--color-line)]" />
+            </div>
+            <span className="relative bg-[var(--color-cream)] px-3 text-xs uppercase tracking-wider text-[var(--color-muted)]">
+              New to Guestplace?
+            </span>
+          </div>
+
+          <button
+            type="button"
+            onClick={() => setRegisterOpen(true)}
+            className="w-full rounded-lg border border-[var(--color-line)] bg-white py-2.5 px-4 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-cream)] transition"
+          >
+            Register new organization
+          </button>
+        </div>
       </div>
+
+      <RegisterOrgModal
+        open={registerOpen}
+        onClose={() => setRegisterOpen(false)}
+      />
     </div>
   )
 }

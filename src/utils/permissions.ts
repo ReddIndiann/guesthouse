@@ -26,6 +26,8 @@ export function resolvePermissions(
   roles: CustomRole[],
   groups: UserGroup[],
 ): Permission[] {
+  if (!profile) return []
+  if (profile.isSuperAdmin) return ALL_PERMISSIONS
   const roleId = resolveRoleId(profile, groups)
   if (!roleId) return []
   if (roleId === SYSTEM_ADMIN_ROLE_ID) return ALL_PERMISSIONS
@@ -42,6 +44,7 @@ export function hasPermission(
 
 export function isSystemAdmin(profile: StaffProfile | null): boolean {
   if (!profile) return false
+  if (profile.isSuperAdmin) return true
   if (profile.assignmentType === 'direct') {
     return profile.roleId === SYSTEM_ADMIN_ROLE_ID
   }

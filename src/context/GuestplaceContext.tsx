@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from './AuthContext'
+import { useTenant } from './TenantContext'
 import { logActivity } from '../lib/operations'
 import {
   cancelBookingRecord,
@@ -36,6 +37,7 @@ import {
 } from '../lib/firestore'
 import { preparePostCheckoutFeedback } from '../lib/checkoutFeedback'
 import { markSuggestionRead, subscribeToSuggestions } from '../lib/suggestions'
+import { applyThemeToDocument } from '../utils/theme'
 import {
   DEFAULT_PROPERTY_SETTINGS,
   type Booking,
@@ -106,7 +108,8 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
-  const propertyId = profile?.propertyId
+  const { currentPropertyId } = useTenant()
+  const propertyId = currentPropertyId || profile?.propertyId
 
   useEffect(() => {
     if (!propertyId) {
@@ -157,6 +160,10 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       unsubSettings()
     }
   }, [propertyId, profile])
+
+  useEffect(() => {
+    applyThemeToDocument(settings.accentColor, settings.colorThemeId)
+  }, [settings.accentColor, settings.colorThemeId])
 
   useEffect(() => {
     if (!propertyId) return

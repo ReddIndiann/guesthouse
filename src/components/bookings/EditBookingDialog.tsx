@@ -162,6 +162,35 @@ export function EditBookingDialog({ booking, open, onClose }: EditBookingDialogP
 
         {tab === 2 && (
           <div className="space-y-3">
+            <div className="space-y-1.5">
+              <span className="text-xs font-semibold uppercase text-[var(--color-muted)]">
+                Quick Room Service / Minibar (1-Tap)
+              </span>
+              <div className="grid grid-cols-2 gap-2 sm:grid-cols-3">
+                {[
+                  { label: 'Bottled Water', amount: 10 },
+                  { label: 'Soda / Malt', amount: 15 },
+                  { label: 'Club Beer', amount: 20 },
+                  { label: 'Laundry', amount: 35 },
+                  { label: 'Breakfast / Meal', amount: 40 },
+                  { label: 'Late Checkout', amount: 50 },
+                ].map((item) => (
+                  <button
+                    key={item.label}
+                    type="button"
+                    onClick={() => {
+                      setChargeDesc(item.label)
+                      setChargeAmount(String(item.amount))
+                    }}
+                    className="flex flex-col items-start rounded-lg border border-[var(--color-line)] bg-white p-2 text-left hover:border-[var(--color-accent)] transition text-xs"
+                  >
+                    <span className="font-medium text-[var(--color-ink)]">{item.label}</span>
+                    <span className="text-emerald-700 font-semibold">{formatMoney(item.amount)}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
             {(booking.extraCharges ?? []).length > 0 && (
               <ul className="rounded-lg bg-[var(--color-cream)] p-3 text-sm">
                 {booking.extraCharges!.map((c) => (
@@ -176,7 +205,7 @@ export function EditBookingDialog({ booking, open, onClose }: EditBookingDialogP
               </ul>
             )}
             <input
-              placeholder="Description (e.g. Late checkout)"
+              placeholder="Description (or custom item)"
               value={chargeDesc}
               onChange={(e) => setChargeDesc(e.target.value)}
               className="w-full rounded-lg border border-[var(--color-line)] px-3 py-2 text-sm"

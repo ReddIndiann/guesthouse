@@ -6,6 +6,7 @@ import { markFolioFeedbackSubmitted } from '../lib/suggestions'
 import type { PublicFolio } from '../types'
 import { formatMoney } from '../utils/currency'
 import { formatBookingSchedule } from '../utils/datetime'
+import { buildWhatsAppReceiptMessage, openWhatsAppReceipt } from '../utils/receipt'
 import type { Booking } from '../types'
 
 export function FolioPage() {
@@ -104,6 +105,52 @@ export function FolioPage() {
                 <span>{formatMoney(folio.totalAmount - folio.amountPaid)}</span>
               </div>
             )}
+            {folio.paymentMethod && (
+              <div className="mt-2 pt-2 border-t border-[var(--color-line)] flex justify-between text-xs text-[var(--color-muted)]">
+                <span>Payment Method</span>
+                <span className="font-medium text-[var(--color-ink)] uppercase">{folio.paymentMethod}</span>
+              </div>
+            )}
+            {folio.paymentReference && (
+              <div className="flex justify-between text-xs text-[var(--color-muted)]">
+                <span>Ref Number</span>
+                <span className="font-mono text-[var(--color-ink)]">{folio.paymentReference}</span>
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4 flex gap-2 print:hidden">
+            <button
+              type="button"
+              onClick={() => {
+                const balance = Math.max(0, folio.totalAmount - folio.amountPaid)
+                const scheduleStr = formatBookingSchedule(schedule as Booking)
+                const msg = buildWhatsAppReceiptMessage({
+                  propertyName: folio.propertyName,
+                  propertyPhone: folio.propertyPhone,
+                  guestName: folio.guestName,
+                  roomNumber: folio.roomNumber,
+                  schedule: scheduleStr,
+                  totalAmount: folio.totalAmount,
+                  amountPaid: folio.amountPaid,
+                  balance,
+                  paymentMethod: folio.paymentMethod,
+                  paymentReference: folio.paymentReference,
+                  wifiPassword: folio.wifiPassword,
+                })
+                openWhatsAppReceipt(undefined, msg)
+              }}
+              className="flex-1 rounded-xl border border-emerald-600 bg-emerald-50 px-3 py-2 text-center text-xs font-semibold text-emerald-800 hover:bg-emerald-100 transition"
+            >
+              Share via WhatsApp
+            </button>
+            <button
+              type="button"
+              onClick={() => window.print()}
+              className="rounded-xl border border-[var(--color-line)] bg-white px-4 py-2 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-cream)] transition"
+            >
+              Print Folio
+            </button>
           </div>
 
           {folio.wifiPassword && !folio.checkedOut && (

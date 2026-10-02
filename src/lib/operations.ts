@@ -292,6 +292,57 @@ export async function createShift(
   return ref.id
 }
 
+export async function startStaffShift(
+  propertyId: string,
+  input: {
+    staffId: string
+    staffName: string
+    openingFloat: number
+    role?: string
+  },
+): Promise<string> {
+  const ref = doc(opsCollection(propertyId, 'shifts'))
+  const now = new Date()
+  const today = todayISO()
+  const startTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  const shift: Omit<StaffShift, 'id'> = {
+    staffId: input.staffId,
+    staffName: input.staffName,
+    date: today,
+    startTime,
+    endTime: '23:59',
+    role: input.role || 'Receptionist',
+    status: 'active',
+    openingFloat: input.openingFloat,
+    createdAt: now.toISOString(),
+  }
+  await setDoc(ref, shift)
+  return ref.id
+}
+
+export async function closeShiftHandover(
+  propertyId: string,
+  shiftId: string,
+  data: {
+    closingCash: number
+    expectedCash: number
+    cashDifference: number
+    totalMomoCollected: number
+    totalCardCollected: number
+    totalCheckIns: number
+    handoverNotes?: string
+  },
+): Promise<void> {
+  const now = new Date()
+  const endTime = `${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`
+  await updateDoc(doc(opsCollection(propertyId, 'shifts'), shiftId), {
+    ...data,
+    endTime,
+    status: 'closed',
+    closedAt: now.toISOString(),
+  })
+}
+
 export async function deleteShift(propertyId: string, shiftId: string): Promise<void> {
   await deleteDoc(doc(opsCollection(propertyId, 'shifts'), shiftId))
 }

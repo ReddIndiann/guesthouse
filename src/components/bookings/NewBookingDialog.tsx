@@ -20,7 +20,6 @@ import { computeBookingSlot, nowTimeString } from '../../utils/datetime'
 import { formatMoney } from '../../utils/currency'
 import {
   calculateBookingTotal,
-  formatBookingRateLabel,
   formatRateSummary,
   RATE_TYPE_LABELS,
   roomHasAirConditioning,
@@ -44,11 +43,16 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
+  const [idNumber, setIdNumber] = useState('')
   const [rateType, setRateType] = useState<BookingRateType>('full_day')
   const [hours, setHours] = useState(1)
   const [checkIn, setCheckIn] = useState(todayISO())
   const [checkOut, setCheckOut] = useState('')
   const [checkInTime, setCheckInTime] = useState(nowTimeString())
+  const [paymentMethod, setPaymentMethod] = useState<'cash' | 'momo' | 'card' | 'bank_transfer'>('cash')
+  const [momoProvider, setMomoProvider] = useState<'mtn' | 'telecel' | 'at'>('mtn')
+  const [paymentReference, setPaymentReference] = useState('')
+  const [amountPaid, setAmountPaid] = useState('')
   const [notes, setNotes] = useState('')
   const [submitError, setSubmitError] = useState<string | null>(null)
   const [submitting, setSubmitting] = useState(false)
@@ -83,6 +87,11 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
     setName('')
     setEmail('')
     setPhone('')
+    setIdNumber('')
+    setPaymentMethod('cash')
+    setMomoProvider('mtn')
+    setPaymentReference('')
+    setAmountPaid('')
     setRateType('full_day')
     setHours(1)
     setCheckIn(todayISO())
@@ -100,6 +109,12 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
     }
     if (rateType === 'per_hour' && hours < 1) {
       setSubmitError('Enter at least 1 hour')
+      return
+    }
+
+    const paidNum = amountPaid ? Number(amountPaid) : 0
+    if (Number.isNaN(paidNum) || paidNum < 0) {
+      setSubmitError('Invalid advance payment amount')
       return
     }
 
@@ -124,8 +139,17 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
         checkOutTime: slot?.checkOutTime ?? settings.checkOutTime,
         rateType,
         hours: rateType === 'per_hour' ? hours : undefined,
+        amountPaid: paidNum,
+        paymentMethod: paidNum > 0 ? paymentMethod : undefined,
+        momoProvider: paidNum > 0 && paymentMethod === 'momo' ? momoProvider : undefined,
+        paymentReference: paymentReference.trim() || undefined,
         notes: notes || undefined,
-        guest: { name, email, phone },
+        guest: {
+          name,
+          email,
+          phone,
+          idNumber: idNumber.trim() || undefined,
+        },
       })
       reset()
       onClose()
@@ -223,13 +247,99 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
           />
         )}
 
+        <TextField
+          label="Ghana Card / National ID (Optional)"
+          value={idNumber}
+          onChange={(e) => setIdNumber(e.target.value)}
+          fullWidth
+          size="small"
+        />
+
         {selectedRoom && (
-          <p className="text-sm font-medium text-[var(--color-ink)]">
-            Total: {formatMoney(estimatedTotal ?? 0)}
-            <span className="ml-2 font-normal text-[var(--color-muted)]">
-              ({formatBookingRateLabel(rateType, rateType === 'per_hour' ? hours : undefined)})
-            </span>
-          </p>
+          <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-3 space-y-3">
+            <div className="flex justify-between items-center text-sm font-semibold text-[var(--color-ink)]">
+              <span>Estimated Total:</span>
+              <span>{formatMoney(estimatedTotal ?? 0)}</span>
+            </div>
+
+            <div className="space-y-1.5 pt-2 border-t border-[var(--color-line)]">
+              <span className="text-xs font-medium text-[var(--color-muted)]">
+                Advance Deposit (Optional)
+              </span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm text-[var(--color-muted)]">₵</span>
+                <input
+                  type="number"
+                  min={0}
+                  max={estimatedTotal ?? undefined}
+                  value={amountPaid}
+                  onChange={(e) => setAmountPaid(e.target.value)}
+                  placeholder="0.00"
+                  className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-1.5 text-sm"
+                />
+              </div>
+            </div>
+
+            {Number(amountPaid) > 0 && (
+              <div className="space-y-2 pt-2 border-t border-[var(--color-line)]">
+                <span className="text-xs font-semibold uppercase text-[var(--color-muted)]">
+                  Payment Method
+                </span>
+                <div className="grid grid-cols-4 gap-1.5">
+                  {[
+                    { id: 'cash', label: 'Cash' },
+                    { id: 'momo', label: 'MoMo' },
+                    { id: 'card', label: 'Card' },
+                    { id: 'bank_transfer', label: 'Bank' },
+                  ].map((m) => (
+                    <button
+                      key={m.id}
+                      type="button"
+                      onClick={() => setPaymentMethod(m.id as any)}
+                      className={`rounded-lg border py-1.5 text-xs font-medium ${
+                        paymentMethod === m.id
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+                          : 'border-[var(--color-line)] bg-white text-[var(--color-ink)]'
+                      }`}
+                    >
+                      {m.label}
+                    </button>
+                  ))}
+                </div>
+
+                {paymentMethod === 'momo' && (
+                  <div className="space-y-2 rounded-lg bg-white p-2 border border-[var(--color-line)]">
+                    <div className="flex gap-1.5">
+                      {[
+                        { id: 'mtn', label: 'MTN' },
+                        { id: 'telecel', label: 'Telecel' },
+                        { id: 'at', label: 'AT' },
+                      ].map((prov) => (
+                        <button
+                          key={prov.id}
+                          type="button"
+                          onClick={() => setMomoProvider(prov.id as any)}
+                          className={`flex-1 rounded py-1 text-xs font-medium border ${
+                            momoProvider === prov.id
+                              ? 'border-amber-500 bg-amber-50 text-amber-900'
+                              : 'border-[var(--color-line)] text-[var(--color-muted)]'
+                          }`}
+                        >
+                          {prov.label}
+                        </button>
+                      ))}
+                    </div>
+                    <input
+                      value={paymentReference}
+                      onChange={(e) => setPaymentReference(e.target.value)}
+                      placeholder="MoMo Transaction Reference"
+                      className="w-full rounded border border-[var(--color-line)] bg-[var(--color-cream)] px-2.5 py-1 text-xs"
+                    />
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         )}
 
         <TextField label="Notes" value={notes} onChange={(e) => setNotes(e.target.value)} multiline rows={2} fullWidth />

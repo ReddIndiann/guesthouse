@@ -8,12 +8,14 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from './AuthContext'
+import { useTenant } from './TenantContext'
 import { useGuestplace } from './GuestplaceContext'
 import {
   addBookingChargeRecord,
   applyBookingExtension,
   assignHousekeepingTask,
   changeBookingRoom,
+  closeShiftHandover,
   completeHousekeepingTask,
   createHousekeepingTask,
   createMaintenanceTicket,
@@ -24,6 +26,7 @@ import {
   logActivity,
   runNightAudit,
   shouldRunNightAudit,
+  startStaffShift,
   subscribeToActivityLog,
   subscribeToHousekeepingTasks,
   subscribeToMaintenanceTickets,
@@ -33,9 +36,15 @@ import {
   toggleChecklistItem,
   updateMaintenanceTicket,
 } from '../lib/operations'
+import {
+  createBranchExpense,
+  deleteBranchExpense,
+  subscribeToBranchExpenses,
+} from '../lib/firestore'
 import type {
   ActivityLogEntry,
   AddBookingChargeInput,
+  BranchExpense,
   ChangeBookingRoomInput,
   ExtendBookingInput,
   HousekeepingTask,
@@ -51,6 +60,7 @@ interface OperationsContextValue {
   activityLog: ActivityLogEntry[]
   shifts: StaffShift[]
   nightAudits: NightAuditSnapshot[]
+  expenses: BranchExpense[]
   activeShift: StaffShift | null
   extendStay: (bookingId: string, input: ExtendBookingInput) => Promise<void>
   changeRoom: (bookingId: string, input: ChangeBookingRoomInput) => Promise<void>
@@ -70,7 +80,22 @@ interface OperationsContextValue {
     updates: Partial<Pick<MaintenanceTicket, 'status' | 'priority' | 'assignedTo' | 'assignedToName'>>,
   ) => Promise<void>
   addShift: (input: Omit<StaffShift, 'id' | 'createdAt'>) => Promise<void>
+  startShift: (openingFloat: number) => Promise<string>
+  closeShift: (
+    shiftId: string,
+    data: {
+      closingCash: number
+      expectedCash: number
+      cashDifference: number
+      totalMomoCollected: number
+      totalCardCollected: number
+      totalCheckIns: number
+      handoverNotes?: string
+    },
+  ) => Promise<void>
   removeShift: (shiftId: string) => Promise<void>
+  addExpense: (input: Omit<BranchExpense, 'id' | 'propertyId' | 'createdAt'>) => Promise<string>
+  removeExpense: (expenseId: string) => Promise<void>
   getFolioUrl: (bookingId: string) => Promise<string>
 }
 
@@ -85,9 +110,11 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
   const [activityLog, setActivityLog] = useState<ActivityLogEntry[]>([])
   const [shifts, setShifts] = useState<StaffShift[]>([])
   const [nightAudits, setNightAudits] = useState<NightAuditSnapshot[]>([])
+  const [expenses, setExpenses] = useState<BranchExpense[]>([])
   const [activeShift, setActiveShift] = useState<StaffShift | null>(null)
 
-  const propertyId = profile?.propertyId
+  const { currentPropertyId } = useTenant()
+  const propertyId = currentPropertyId || profile?.propertyId
   const actor = useMemo(
     () => ({
       uid: user?.uid ?? '',
@@ -103,6 +130,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       setActivityLog([])
       setShifts([])
       setNightAudits([])
+      setExpenses([])
       return
     }
 
@@ -113,6 +141,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       subscribeToActivityLog(propertyId, setActivityLog, onError),
       subscribeToShifts(propertyId, setShifts, onError),
       subscribeToNightAudits(propertyId, setNightAudits, onError),
+      subscribeToBranchExpenses(propertyId, setExpenses, onError),
     ]
     return () => unsubs.forEach((u) => u())
   }, [propertyId])
@@ -298,6 +327,60 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
     [propertyId, audit],
   )
 
+  const startShift = useCallback(
+    async (openingFloat: number) => {
+      if (!propertyId || !user?.uid) throw new Error('Not signed in')
+      const id = await startStaffShift(propertyId, {
+        staffId: user.uid,
+        staffName: profile?.displayName || 'Staff',
+        openingFloat,
+        role: profile?.roleId,
+      })
+      await audit('start_shift', 'shift', id, `Opening float: ${openingFloat}`)
+      return id
+    },
+    [propertyId, user?.uid, profile, audit],
+  )
+
+  const closeShift = useCallback(
+    async (
+      shiftId: string,
+      data: {
+        closingCash: number
+        expectedCash: number
+        cashDifference: number
+        totalMomoCollected: number
+        totalCardCollected: number
+        totalCheckIns: number
+        handoverNotes?: string
+      },
+    ) => {
+      if (!propertyId) return
+      await closeShiftHandover(propertyId, shiftId, data)
+      await audit('close_shift', 'shift', shiftId, `Diff: ${data.cashDifference}, MoMo: ${data.totalMomoCollected}`)
+    },
+    [propertyId, audit],
+  )
+
+  const addExpense = useCallback(
+    async (input: Omit<BranchExpense, 'id' | 'propertyId' | 'createdAt'>) => {
+      if (!propertyId) throw new Error('Not signed in')
+      const id = await createBranchExpense(propertyId, input)
+      await audit('create_expense', 'system', id, `${input.title} - ${input.amount}`)
+      return id
+    },
+    [propertyId, audit],
+  )
+
+  const removeExpense = useCallback(
+    async (expenseId: string) => {
+      if (!propertyId) return
+      await deleteBranchExpense(propertyId, expenseId)
+      await audit('delete_expense', 'system', expenseId)
+    },
+    [propertyId, audit],
+  )
+
   const getFolioUrl = useCallback(
     async (bookingId: string) => {
       if (!propertyId) throw new Error('Not signed in')
@@ -318,6 +401,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       activityLog,
       shifts,
       nightAudits,
+      expenses,
       activeShift,
       extendStay,
       changeRoom,
@@ -328,7 +412,11 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       reportMaintenance,
       updateTicket,
       addShift,
+      startShift,
+      closeShift,
       removeShift,
+      addExpense,
+      removeExpense,
       getFolioUrl,
     }),
     [
@@ -337,6 +425,7 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       activityLog,
       shifts,
       nightAudits,
+      expenses,
       activeShift,
       extendStay,
       changeRoom,
@@ -347,7 +436,11 @@ export function OperationsProvider({ children }: { children: ReactNode }) {
       reportMaintenance,
       updateTicket,
       addShift,
+      startShift,
+      closeShift,
       removeShift,
+      addExpense,
+      removeExpense,
       getFolioUrl,
     ],
   )

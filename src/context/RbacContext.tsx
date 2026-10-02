@@ -8,6 +8,7 @@ import {
   type ReactNode,
 } from 'react'
 import { useAuth } from './AuthContext'
+import { useTenant } from './TenantContext'
 import {
   createGroup,
   createRole,
@@ -62,12 +63,14 @@ const RbacContext = createContext<RbacContextValue | null>(null)
 
 export function RbacProvider({ children }: { children: ReactNode }) {
   const { user, profile } = useAuth()
+  const { currentPropertyId } = useTenant()
+  const activePropertyId = currentPropertyId || profile?.propertyId
   const [roles, setRoles] = useState<CustomRole[]>([])
   const [groups, setGroups] = useState<UserGroup[]>([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    if (!profile?.propertyId) {
+    if (!activePropertyId) {
       setRoles([])
       setGroups([])
       setLoading(false)
@@ -81,14 +84,14 @@ export function RbacProvider({ children }: { children: ReactNode }) {
       if (ready >= 2) setLoading(false)
     }
 
-    ensureSystemAdminRole(profile.propertyId).catch(console.error)
+    ensureSystemAdminRole(activePropertyId).catch(console.error)
 
-    const unsubRoles = subscribeToRoles(profile.propertyId, (data) => {
+    const unsubRoles = subscribeToRoles(activePropertyId, (data) => {
       setRoles(data)
       markReady()
     }, console.error)
 
-    const unsubGroups = subscribeToGroups(profile.propertyId, (data) => {
+    const unsubGroups = subscribeToGroups(activePropertyId, (data) => {
       setGroups(data)
       markReady()
     }, console.error)
@@ -97,7 +100,7 @@ export function RbacProvider({ children }: { children: ReactNode }) {
       unsubRoles()
       unsubGroups()
     }
-  }, [profile?.propertyId])
+  }, [activePropertyId])
 
   const permissions = useMemo(
     () => resolvePermissions(profile, roles, groups),
@@ -126,11 +129,11 @@ export function RbacProvider({ children }: { children: ReactNode }) {
 
   const createStaff = useCallback(
     async (input: CreateStaffInput) => {
-      if (!user || !profile) throw new Error('Not authenticated')
+      if (!user || !profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('users.create')) throw new Error('No permission to create users')
-      await createStaffAuthUser(input, profile.propertyId, user.uid)
+      await createStaffAuthUser(input, activePropertyId, user.uid)
     },
-    [user, profile, can],
+    [user, profile, activePropertyId, can],
   )
 
   const assignStaff = useCallback(
@@ -153,58 +156,58 @@ export function RbacProvider({ children }: { children: ReactNode }) {
 
   const createCustomRole = useCallback(
     async (input: CreateRoleInput) => {
-      if (!profile) throw new Error('Not authenticated')
+      if (!profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('roles.manage')) throw new Error('No permission')
-      await createRole(profile.propertyId, input)
+      await createRole(activePropertyId, input)
     },
-    [profile, can],
+    [profile, activePropertyId, can],
   )
 
   const updateCustomRole = useCallback(
     async (roleId: string, input: Partial<CreateRoleInput>) => {
-      if (!profile) throw new Error('Not authenticated')
+      if (!profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('roles.manage')) throw new Error('No permission')
-      await updateRole(profile.propertyId, roleId, input)
+      await updateRole(activePropertyId, roleId, input)
     },
-    [profile, can],
+    [profile, activePropertyId, can],
   )
 
   const removeCustomRole = useCallback(
     async (roleId: string) => {
-      if (!profile) throw new Error('Not authenticated')
+      if (!profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('roles.manage')) throw new Error('No permission')
       const role = roles.find((r) => r.id === roleId)
       if (role?.isSystem) throw new Error('System roles cannot be deleted')
-      await deleteRole(profile.propertyId, roleId)
+      await deleteRole(activePropertyId, roleId)
     },
-    [profile, can, roles],
+    [profile, activePropertyId, can, roles],
   )
 
   const createUserGroup = useCallback(
     async (input: CreateGroupInput) => {
-      if (!profile) throw new Error('Not authenticated')
+      if (!profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('groups.manage')) throw new Error('No permission')
-      await createGroup(profile.propertyId, input)
+      await createGroup(activePropertyId, input)
     },
-    [profile, can],
+    [profile, activePropertyId, can],
   )
 
   const updateUserGroup = useCallback(
     async (groupId: string, input: Partial<CreateGroupInput>) => {
-      if (!profile) throw new Error('Not authenticated')
+      if (!profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('groups.manage')) throw new Error('No permission')
-      await updateGroup(profile.propertyId, groupId, input)
+      await updateGroup(activePropertyId, groupId, input)
     },
-    [profile, can],
+    [profile, activePropertyId, can],
   )
 
   const removeUserGroup = useCallback(
     async (groupId: string) => {
-      if (!profile) throw new Error('Not authenticated')
+      if (!profile || !activePropertyId) throw new Error('Not authenticated')
       if (!can('groups.manage')) throw new Error('No permission')
-      await deleteGroup(profile.propertyId, groupId)
+      await deleteGroup(activePropertyId, groupId)
     },
-    [profile, can],
+    [profile, activePropertyId, can],
   )
 
   const value = useMemo(
