@@ -31,6 +31,15 @@ function AccessGuard() {
   return <AccessPage />
 }
 
+function ReportsGuard() {
+  const { can, loading } = useRbac()
+  if (loading) return null
+  if (!can('reports.view')) {
+    return <Navigate to="/" replace />
+  }
+  return <ReportsPage />
+}
+
 function TenantShell() {
   return (
     <TenantProvider>
@@ -72,7 +81,7 @@ function App() {
                 <Route path="messages" element={<MessagesPage />} />
                 <Route path="settings" element={<SettingsPage />} />
                 <Route path="housekeeping" element={<HousekeepingPage />} />
-                <Route path="reports" element={<ReportsPage />} />
+                <Route path="reports" element={<ReportsGuard />} />
                 <Route path="access" element={<AccessGuard />} />
               </Route>
             </Route>

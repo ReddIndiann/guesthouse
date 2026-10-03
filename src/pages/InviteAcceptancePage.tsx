@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useParams, useNavigate, Link } from 'react-router-dom'
 import { getOrganizationByInviteToken, acceptOrganizationInvite } from '../lib/tenants'
 import type { Organization, PropertyItem } from '../types/tenant'
+import { PropertyTypeIcon, getPropertyTypeLabel } from '../components/ui/PropertyTypeIcon'
 
 export function InviteAcceptancePage() {
   const { token } = useParams<{ token: string }>()
@@ -150,15 +151,6 @@ export function InviteAcceptancePage() {
     )
   }
 
-  const propertyTypeLabel =
-    org.propertyType === 'airbnb'
-      ? '🔑 Airbnb / Vacation Rental'
-      : org.propertyType === 'hotel'
-      ? '🏨 Hotel'
-      : org.propertyType === 'resort'
-      ? '🌴 Resort'
-      : '🏡 Guest House'
-
   return (
     <div className="min-h-screen bg-[var(--color-cream)] py-12 px-4 sm:px-6 flex flex-col items-center justify-center">
       {/* Brand Header */}
@@ -199,7 +191,10 @@ export function InviteAcceptancePage() {
 
           <div className="flex items-center justify-between text-xs">
             <span className="text-[var(--color-muted)]">Property Type</span>
-            <span className="font-medium text-[var(--color-ink)]">{propertyTypeLabel}</span>
+            <span className="font-medium text-[var(--color-ink)] inline-flex items-center gap-1.5">
+              <PropertyTypeIcon type={org.propertyType} className="w-3.5 h-3.5 text-[var(--color-accent)]" />
+              <span>{getPropertyTypeLabel(org.propertyType)}</span>
+            </span>
           </div>
 
           {org.location && (
@@ -231,8 +226,11 @@ export function InviteAcceptancePage() {
           )}
 
           {success && (
-            <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200 font-medium">
-              🎉 Workspace activated successfully! Redirecting to your dashboard…
+            <div className="rounded-xl bg-emerald-50 p-3 text-xs text-emerald-800 border border-emerald-200 font-medium flex items-center gap-2">
+              <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+              </svg>
+              <span>Workspace activated successfully! Redirecting to your dashboard…</span>
             </div>
           )}
 

@@ -12,12 +12,13 @@ import { useAuth } from '../context/AuthContext'
 import { useTenant } from '../context/TenantContext'
 import { formatMoney } from '../utils/currency'
 import { applyThemeToDocument } from '../utils/theme'
+import { PropertyTypeIcon } from '../components/ui/PropertyTypeIcon'
 
-const CATEGORY_OPTIONS: { id: PropertyCategory; label: string; icon: string; desc: string }[] = [
-  { id: 'guesthouse', label: 'Guest House / Lodge', icon: '🏡', desc: 'Hourly walk-ins & daily rates' },
-  { id: 'hotel', label: 'Boutique Hotel', icon: '🏨', desc: 'Room tiers & nightly folios' },
-  { id: 'airbnb', label: 'Airbnb / Apartments', icon: '🔑', desc: 'Nightly stays, cleaning & self check-in' },
-  { id: 'resort', label: 'Resort / Retreat', icon: '🌴', desc: 'Leisure villas & full day rates' },
+const CATEGORY_OPTIONS: { id: PropertyCategory; label: string; desc: string }[] = [
+  { id: 'guesthouse', label: 'Guest House / Lodge', desc: 'Hourly walk-ins & daily rates' },
+  { id: 'hotel', label: 'Boutique Hotel', desc: 'Room tiers & nightly folios' },
+  { id: 'airbnb', label: 'Airbnb / Apartments', desc: 'Nightly stays, cleaning & self check-in' },
+  { id: 'resort', label: 'Resort / Retreat', desc: 'Leisure villas & full day rates' },
 ]
 
 type RateField = keyof RoomRateBand
@@ -153,9 +154,9 @@ export function SettingsPage() {
               // Read-only locked view for regular staff
               <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)]">
                 <div className="flex items-center gap-3">
-                  <span className="text-2xl">
-                    {CATEGORY_OPTIONS.find((c) => c.id === (form.propertyType || 'guesthouse'))?.icon || '🏡'}
-                  </span>
+                  <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-white border border-[var(--color-line)] text-[var(--color-accent)]">
+                    <PropertyTypeIcon type={form.propertyType || 'guesthouse'} className="w-5 h-5" />
+                  </div>
                   <div>
                     <div className="flex items-center gap-2">
                       <span className="text-sm font-semibold text-[var(--color-ink)]">
@@ -170,8 +171,12 @@ export function SettingsPage() {
                     </p>
                   </div>
                 </div>
-                <span className="text-[11px] text-[var(--color-muted)] hidden sm:inline">
-                  🔒 Locked for staff
+                <span className="text-[11px] text-[var(--color-muted)] hidden sm:inline-flex items-center gap-1">
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </svg>
+                  <span>Locked for staff</span>
                 </span>
               </div>
             ) : (
@@ -195,11 +200,13 @@ export function SettingsPage() {
                           : 'border-[var(--color-line)] bg-white text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-ink)] cursor-pointer'
                       }`}
                     >
-                      <span className="text-xl mb-1">{cat.icon}</span>
+                      <div className={`mb-1.5 flex h-8 w-8 items-center justify-center rounded-lg ${isSelected ? 'text-[var(--color-accent)]' : 'text-[var(--color-muted)]'}`}>
+                        <PropertyTypeIcon type={cat.id} className="w-5 h-5" />
+                      </div>
                       <span className="text-xs font-medium">{cat.label}</span>
                       <span className="text-[10px] text-[var(--color-muted)] mt-0.5 leading-tight">{cat.desc}</span>
                       {isSelected && (
-                        <span className="mt-1 text-[9px] font-semibold text-[var(--color-accent)] uppercase tracking-wider">
+                        <span className="mt-1.5 text-[9px] font-semibold text-[var(--color-accent)] uppercase tracking-wider">
                           Active
                         </span>
                       )}
@@ -592,8 +599,10 @@ export function SettingsPage() {
           <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
             <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-[var(--color-line)] space-y-4">
               <div className="flex items-start gap-3">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-lg">
-                  ⚠️
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-700">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                  </svg>
                 </div>
                 <div>
                   <h3 className="text-base font-semibold text-[var(--color-ink)]">
@@ -608,14 +617,16 @@ export function SettingsPage() {
               <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-3 text-xs space-y-2">
                 <div className="flex items-center justify-between">
                   <span className="text-[var(--color-muted)]">Current Model:</span>
-                  <span className="font-semibold text-[var(--color-ink)] flex items-center gap-1">
-                    <span>{currentCat?.icon}</span> {currentCat?.label}
+                  <span className="font-semibold text-[var(--color-ink)] flex items-center gap-1.5">
+                    <PropertyTypeIcon type={currentCat?.id} className="w-4 h-4 text-[var(--color-muted)]" />
+                    <span>{currentCat?.label}</span>
                   </span>
                 </div>
                 <div className="flex items-center justify-between border-t border-[var(--color-line)] pt-1.5">
                   <span className="text-[var(--color-muted)]">New Model:</span>
-                  <span className="font-semibold text-[var(--color-accent)] flex items-center gap-1">
-                    <span>{targetCat?.icon}</span> {targetCat?.label}
+                  <span className="font-semibold text-[var(--color-accent)] flex items-center gap-1.5">
+                    <PropertyTypeIcon type={targetCat?.id} className="w-4 h-4 text-[var(--color-accent)]" />
+                    <span>{targetCat?.label}</span>
                   </span>
                 </div>
               </div>

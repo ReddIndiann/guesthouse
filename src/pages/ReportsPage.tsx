@@ -14,6 +14,7 @@ import { todayISO } from '../utils/dates'
 import { formatMoney } from '../utils/currency'
 import { rateTypeReportLabel } from '../utils/reports'
 import type { BookingRateType, ExpenseCategory } from '../types'
+import { ExpenseCategoryIcon } from '../components/ui/ExpenseCategoryIcon'
 
 type Period = 'week' | 'month'
 type ReportTab = 'revenue' | 'shifts' | 'expenses'
@@ -83,9 +84,11 @@ export function ReportsPage() {
           <button
             type="button"
             onClick={() => setShiftModalOpen(true)}
-            className="rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--color-ink)] hover:bg-[var(--color-cream)] transition shadow-sm flex items-center gap-1.5"
+            className="rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-xs font-semibold text-[var(--color-ink)] hover:bg-[var(--color-cream)] transition shadow-sm flex items-center gap-2"
           >
-            <span>💰</span>
+            <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M17 9V7a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2m2 4h10a2 2 0 002-2v-6a2 2 0 00-2-2H9a2 2 0 00-2 2v6a2 2 0 002 2zm7-5a2 2 0 11-4 0 2 2 0 014 0z" />
+            </svg>
             <span>{activeShift ? 'Active Shift Drawer' : 'Start Shift'}</span>
           </button>
           <button
@@ -93,7 +96,9 @@ export function ReportsPage() {
             onClick={() => setExpenseModalOpen(true)}
             className="rounded-lg bg-[var(--color-accent)] px-3.5 py-2 text-xs font-semibold text-white hover:opacity-95 transition shadow-sm flex items-center gap-1.5"
           >
-            <span>+</span>
+            <svg className="w-3.5 h-3.5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
             <span>Log Expense</span>
           </button>
         </div>
@@ -397,9 +402,14 @@ export function ReportsPage() {
               </h3>
               <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
                 {expensesByCategory.map(([cat, amt]) => (
-                  <div key={cat} className="rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] p-2.5">
-                    <p className="text-xs text-[var(--color-muted)] truncate">{CATEGORY_LABELS[cat]}</p>
-                    <p className="text-sm font-semibold text-[var(--color-ink)] mt-0.5">{formatMoney(amt)}</p>
+                  <div key={cat} className="rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] p-2.5 flex items-start gap-2.5">
+                    <div className="p-1.5 rounded-md bg-white border border-[var(--color-line)] text-[var(--color-accent)] shrink-0 mt-0.5">
+                      <ExpenseCategoryIcon category={cat} className="w-4 h-4" />
+                    </div>
+                    <div className="min-w-0">
+                      <p className="text-xs text-[var(--color-muted)] truncate">{CATEGORY_LABELS[cat]}</p>
+                      <p className="text-sm font-semibold text-[var(--color-ink)] mt-0.5">{formatMoney(amt)}</p>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -441,7 +451,8 @@ export function ReportsPage() {
                       <tr key={e.id} className="hover:bg-[var(--color-cream)]/50">
                         <td className="py-3 font-medium text-[var(--color-ink)]">{e.date}</td>
                         <td className="py-3">
-                          <span className="rounded bg-gray-100 px-2 py-0.5 font-medium text-[11px] text-gray-800">
+                          <span className="inline-flex items-center gap-1.5 rounded bg-gray-100 px-2 py-0.5 font-medium text-[11px] text-gray-800">
+                            <ExpenseCategoryIcon category={e.category} className="w-3 h-3 text-gray-500" />
                             {CATEGORY_LABELS[e.category] || e.category}
                           </span>
                         </td>

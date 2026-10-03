@@ -38,8 +38,10 @@ export function ShiftHandoverModal({ open, onClose }: ShiftHandoverModalProps) {
   const shiftMetrics = useMemo(() => {
     if (!currentShift) return { cash: 0, momo: 0, card: 0, total: 0, checkIns: 0 }
     const today = todayISO()
-    // Bookings checked in or updated today
-    const shiftBookings = bookings.filter((b) => b.checkIn === today || b.status === 'checked_in')
+    // Bookings checked in or checked out today, or active
+    const shiftBookings = bookings.filter(
+      (b) => b.checkIn === today || b.checkOut === today || b.status === 'checked_in',
+    )
     
     let cash = 0
     let momo = 0

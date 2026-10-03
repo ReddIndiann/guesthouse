@@ -13,20 +13,22 @@ import { useAuth } from '../../context/AuthContext'
 import type { ExpenseCategory } from '../../types'
 import { todayISO } from '../../utils/dates'
 
+import { ExpenseCategoryIcon } from '../ui/ExpenseCategoryIcon'
+
 interface LogExpenseModalProps {
   open: boolean
   onClose: () => void
 }
 
-const EXPENSE_CATEGORIES: { id: ExpenseCategory; label: string; icon: string }[] = [
-  { id: 'generator_fuel', label: 'Generator Diesel / Fuel', icon: '⛽' },
-  { id: 'ecg_electricity', label: 'ECG Electricity Prepaid', icon: '⚡' },
-  { id: 'water_supply', label: 'Water Tanker / Utility', icon: '💧' },
-  { id: 'cleaning_supplies', label: 'Cleaning & Toiletries', icon: '🧹' },
-  { id: 'maintenance', label: 'Repairs & Maintenance', icon: '🔧' },
-  { id: 'food_beverage', label: 'Food & Beverage Restock', icon: '🥤' },
-  { id: 'staff_welfare', label: 'Staff Welfare / Meals', icon: '👥' },
-  { id: 'other', label: 'Other General Expense', icon: '📦' },
+const EXPENSE_CATEGORIES: { id: ExpenseCategory; label: string }[] = [
+  { id: 'generator_fuel', label: 'Generator Diesel / Fuel' },
+  { id: 'ecg_electricity', label: 'ECG Electricity Prepaid' },
+  { id: 'water_supply', label: 'Water Tanker / Utility' },
+  { id: 'cleaning_supplies', label: 'Cleaning & Toiletries' },
+  { id: 'maintenance', label: 'Repairs & Maintenance' },
+  { id: 'food_beverage', label: 'Food & Beverage Restock' },
+  { id: 'staff_welfare', label: 'Staff Welfare / Meals' },
+  { id: 'other', label: 'Other General Expense' },
 ]
 
 export function LogExpenseModal({ open, onClose }: LogExpenseModalProps) {
@@ -95,17 +97,22 @@ export function LogExpenseModal({ open, onClose }: LogExpenseModalProps) {
 
           <label className="flex flex-col gap-1.5 text-sm">
             <span className="font-medium text-[var(--color-ink)]">Expense Category</span>
-            <select
-              value={category}
-              onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
-              className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 text-sm"
-            >
-              {EXPENSE_CATEGORIES.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.icon} {c.label}
-                </option>
-              ))}
-            </select>
+            <div className="relative flex items-center">
+              <div className="pointer-events-none absolute left-3 flex items-center text-[var(--color-accent)]">
+                <ExpenseCategoryIcon category={category} className="w-4 h-4" />
+              </div>
+              <select
+                value={category}
+                onChange={(e) => setCategory(e.target.value as ExpenseCategory)}
+                className="w-full rounded-lg border border-[var(--color-line)] bg-white pl-9 pr-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-[var(--color-accent)]"
+              >
+                {EXPENSE_CATEGORIES.map((c) => (
+                  <option key={c.id} value={c.id}>
+                    {c.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </label>
 
           <label className="flex flex-col gap-1.5 text-sm">

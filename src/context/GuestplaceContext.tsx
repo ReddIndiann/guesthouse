@@ -14,6 +14,7 @@ import {
   cancelBookingRecord,
   checkInBooking,
   checkOutBooking,
+  type SettlementInput,
   clearPropertyData,
   createBookingRecord,
   createCommunicationRecord,
@@ -74,7 +75,7 @@ interface GuestplaceContextValue {
   updateRoom: (roomId: string, input: RoomInput) => Promise<void>
   deleteRoom: (roomId: string) => Promise<void>
   checkIn: (bookingId: string) => Promise<void>
-  checkOut: (bookingId: string) => Promise<void>
+  checkOut: (bookingId: string, settlement?: SettlementInput) => Promise<void>
   createBooking: (input: NewBookingInput) => Promise<string>
   cancelBooking: (bookingId: string) => Promise<void>
   updatePayment: (bookingId: string, amountPaid: number) => Promise<void>
@@ -269,21 +270,25 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
   )
 
   const checkOut = useCallback(
-    async (bookingId: string) => {
+    async (bookingId: string, settlement?: SettlementInput) => {
       if (!propertyId) return
       const booking = bookings.find((b) => b.id === bookingId)
       const room = booking ? rooms.find((r) => r.id === booking.roomId) : undefined
       const guest = booking ? guests.find((g) => g.id === booking.guestId) : undefined
       if (!booking || !room || !guest) return
-      await checkOutBooking(propertyId, bookingId, booking.roomId)
+      await checkOutBooking(propertyId, bookingId, booking.roomId, settlement)
       await preparePostCheckoutFeedback(propertyId, booking, guest, room, settings).catch(
         console.error,
       )
+      const settlementDetails =
+        settlement && settlement.amountCollected > 0
+          ? ` (Settled ₵${settlement.amountCollected} via ${settlement.paymentMethod})`
+          : ''
       await logActivity(propertyId, {
         action: 'check_out',
         entityType: 'booking',
         entityId: bookingId,
-        details: `Room ${room.number}`,
+        details: `Room ${room.number}${settlementDetails}`,
         performedBy: user?.uid ?? '',
         performedByName: profile?.displayName ?? 'Staff',
       })

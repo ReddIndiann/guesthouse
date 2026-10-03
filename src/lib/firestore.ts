@@ -11,6 +11,7 @@ import {
   updateDoc,
   where,
   writeBatch,
+  increment,
   type DocumentData,
   type QueryDocumentSnapshot,
   type Unsubscribe,
@@ -428,16 +429,38 @@ function defaultChecklist(): HousekeepingChecklistItem[] {
   }))
 }
 
+export interface SettlementInput {
+  amountCollected: number
+  paymentMethod: PaymentMethod
+  paymentReference?: string
+}
+
 export async function checkOutBooking(
   propertyId: string,
   bookingId: string,
   roomId: string,
+  settlement?: SettlementInput,
 ): Promise<void> {
   const now = new Date().toISOString()
+  const today = todayISO()
   const batch = writeBatch(db)
-  batch.update(doc(propertyCollection(propertyId, 'bookings'), bookingId), {
+  const bookingRef = doc(propertyCollection(propertyId, 'bookings'), bookingId)
+
+  const bookingUpdate: Record<string, unknown> = {
     status: 'checked_out',
-  })
+    checkOut: today,
+  }
+
+  if (settlement && settlement.amountCollected > 0) {
+    bookingUpdate.amountPaid = increment(settlement.amountCollected)
+    bookingUpdate.paymentMethod = settlement.paymentMethod
+    bookingUpdate.paymentStatus = 'paid'
+    if (settlement.paymentReference) {
+      bookingUpdate.paymentReference = settlement.paymentReference
+    }
+  }
+
+  batch.update(bookingRef, bookingUpdate)
   batch.update(doc(propertyCollection(propertyId, 'rooms'), roomId), {
     status: 'cleaning',
     cleaningStartedAt: now,

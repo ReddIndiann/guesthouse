@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { registerOrganization } from '../../lib/tenants'
+import { PropertyTypeIcon } from '../ui/PropertyTypeIcon'
 
 interface RegisterOrgModalProps {
   open: boolean
@@ -9,11 +10,11 @@ interface RegisterOrgModalProps {
 
 type PropertyType = 'hotel' | 'guesthouse' | 'airbnb' | 'resort'
 
-const PROPERTY_TYPES: { id: PropertyType; label: string; icon: string; desc: string }[] = [
-  { id: 'hotel', label: 'Hotel / Boutique', icon: '🏨', desc: 'Front desk, rooms & amenities' },
-  { id: 'guesthouse', label: 'Guest House / Lodge', icon: '🏡', desc: 'Walk-ins, shifts & room rates' },
-  { id: 'airbnb', label: 'Airbnb / Apartments', icon: '🔑', desc: 'Short-stays, units & key handoff' },
-  { id: 'resort', label: 'Resort / Retreat', icon: '🌴', desc: 'Villas, leisure & grounds' },
+const PROPERTY_TYPES: { id: PropertyType; label: string; desc: string }[] = [
+  { id: 'hotel', label: 'Hotel / Boutique', desc: 'Front desk, rooms & amenities' },
+  { id: 'guesthouse', label: 'Guest House / Lodge', desc: 'Walk-ins, shifts & room rates' },
+  { id: 'airbnb', label: 'Airbnb / Apartments', desc: 'Short-stays, units & key handoff' },
+  { id: 'resort', label: 'Resort / Retreat', desc: 'Villas, leisure & grounds' },
 ]
 
 export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalProps) {
@@ -186,8 +187,10 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
                             : 'border-[var(--color-line)] bg-[var(--color-cream)]/70 text-[var(--color-muted)] hover:border-[var(--color-muted)]/50'
                         }`}
                       >
-                        <span className="text-lg mb-1">{type.icon}</span>
-                        <span className="text-xs leading-tight">{type.label}</span>
+                        <div className={`mb-1.5 flex h-7 w-7 items-center justify-center rounded-lg ${isSelected ? 'text-[var(--color-accent)]' : 'text-[var(--color-muted)]'}`}>
+                          <PropertyTypeIcon type={type.id} className="w-5 h-5" />
+                        </div>
+                        <span className="text-xs leading-tight font-medium">{type.label}</span>
                       </button>
                     )
                   })}

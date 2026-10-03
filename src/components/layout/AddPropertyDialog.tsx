@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom'
 import { useTenant } from '../../context/TenantContext'
 import { compressImageFile } from '../../utils/image'
 import { PRESET_COLOR_THEMES } from '../../utils/theme'
+import { PropertyTypeIcon } from '../ui/PropertyTypeIcon'
 
 interface AddPropertyDialogProps {
   open: boolean
@@ -161,10 +162,10 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
             </label>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
               {[
-                { id: 'hotel', label: 'Hotel', icon: '🏨' },
-                { id: 'guesthouse', label: 'Guest House', icon: '🏡' },
-                { id: 'airbnb', label: 'Airbnb / Apt', icon: '🔑' },
-                { id: 'resort', label: 'Resort', icon: '🌴' },
+                { id: 'hotel', label: 'Hotel' },
+                { id: 'guesthouse', label: 'Guest House' },
+                { id: 'airbnb', label: 'Airbnb / Apt' },
+                { id: 'resort', label: 'Resort' },
               ].map((t) => {
                 const isSelected = propertyType === t.id
                 return (
@@ -178,7 +179,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
                         : 'border-[var(--color-line)] bg-white text-[var(--color-ink)] hover:bg-[var(--color-cream)]'
                     }`}
                   >
-                    <span>{t.icon}</span>
+                    <PropertyTypeIcon type={t.id} className="w-3.5 h-3.5 shrink-0" />
                     <span className="truncate">{t.label}</span>
                   </button>
                 )

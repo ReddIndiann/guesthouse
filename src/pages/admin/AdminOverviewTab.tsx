@@ -1,4 +1,5 @@
 import type { Organization } from '../../types/tenant'
+import { PropertyTypeIcon, getPropertyTypeLabel } from '../../components/ui/PropertyTypeIcon'
 
 interface AdminOverviewTabProps {
   organizations: Organization[]
@@ -135,8 +136,9 @@ export function AdminOverviewTab({
                           {isPending ? 'Pending review' : org.status}
                         </span>
                         {org.propertyType && (
-                          <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.2 text-[10px] font-medium text-blue-800 capitalize">
-                            {org.propertyType === 'airbnb' ? '🔑 Airbnb' : org.propertyType === 'hotel' ? '🏨 Hotel' : org.propertyType === 'resort' ? '🌴 Resort' : '🏡 Guest House'}
+                          <span className="inline-flex items-center gap-1 rounded-full bg-blue-50 border border-blue-200 px-2 py-0.2 text-[10px] font-medium text-blue-800">
+                            <PropertyTypeIcon type={org.propertyType} className="w-3 h-3 text-blue-700" />
+                            <span>{getPropertyTypeLabel(org.propertyType)}</span>
                           </span>
                         )}
                       </div>

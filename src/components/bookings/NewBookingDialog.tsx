@@ -282,7 +282,7 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
 
         {isAirbnb && (
           <TextField
-            label="🔑 Self Check-in Door / Keybox PIN"
+            label="Self Check-in Door / Keybox PIN"
             value={doorCode}
             onChange={(e) => setDoorCode(e.target.value)}
             placeholder="e.g. 4829# or Lockbox 1234"

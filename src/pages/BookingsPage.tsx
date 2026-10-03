@@ -2,6 +2,8 @@ import { useMemo, useState } from 'react'
 import { BookingCalendar } from '../components/bookings/BookingCalendar'
 import { BookingReceiptDialog } from '../components/bookings/BookingReceiptDialog'
 import { EditBookingDialog } from '../components/bookings/EditBookingDialog'
+import { CheckoutSettlementModal } from '../components/bookings/CheckoutSettlementModal'
+import type { SettlementInput } from '../lib/firestore'
 import { Panel } from '../components/ui/Panel'
 import { PageHeader } from '../components/ui/PageHeader'
 import { useRbac } from '../context/RbacContext'
@@ -27,6 +29,14 @@ export function BookingsPage() {
   const [paymentEdits, setPaymentEdits] = useState<Record<string, string>>({})
   const [receiptBooking, setReceiptBooking] = useState<Booking | null>(null)
   const [editBooking, setEditBooking] = useState<Booking | null>(null)
+  const [checkoutBooking, setCheckoutBooking] = useState<Booking | null>(null)
+
+  const handleConfirmCheckout = async (settlement?: SettlementInput) => {
+    if (checkoutBooking) {
+      await checkOut(checkoutBooking.id, settlement)
+      setCheckoutBooking(null)
+    }
+  }
 
   const sorted = useMemo(
     () =>
@@ -230,7 +240,7 @@ export function BookingsPage() {
                           {booking.status === 'checked_in' && can('bookings.checkout') && (
                             <button
                               type="button"
-                              onClick={() => checkOut(booking.id)}
+                              onClick={() => setCheckoutBooking(booking)}
                               className="w-full rounded-lg border border-[var(--color-line)] px-4 py-2.5 text-sm font-medium text-[var(--color-ink)] active:scale-[0.98] sm:w-auto sm:py-1.5"
                             >
                               Check out
@@ -256,6 +266,14 @@ export function BookingsPage() {
         booking={editBooking}
         open={!!editBooking}
         onClose={() => setEditBooking(null)}
+      />
+      <CheckoutSettlementModal
+        open={!!checkoutBooking}
+        onClose={() => setCheckoutBooking(null)}
+        booking={checkoutBooking}
+        room={checkoutBooking ? getRoom(checkoutBooking.roomId) || null : null}
+        guestName={checkoutBooking ? getGuest(checkoutBooking.guestId)?.name : undefined}
+        onConfirmCheckout={handleConfirmCheckout}
       />
     </div>
   )

@@ -126,9 +126,12 @@ export function PublicStayPage() {
             {(settings.phone || property.phone) && (
               <a
                 href={`tel:${settings.phone || property.phone}`}
-                className="hidden sm:inline-flex rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 transition"
+                className="hidden sm:inline-flex items-center gap-1.5 rounded-lg border border-stone-300 bg-white px-3 py-1.5 text-xs font-semibold text-stone-800 hover:bg-stone-50 transition"
               >
-                📞 Call Front Desk
+                <svg className="w-3.5 h-3.5 text-stone-600" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z" />
+                </svg>
+                <span>Call Front Desk</span>
               </a>
             )}
             <button
@@ -136,7 +139,9 @@ export function PublicStayPage() {
               onClick={() => handleWhatsAppBooking()}
               className="rounded-lg bg-emerald-700 px-3.5 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-emerald-800 transition flex items-center gap-1.5"
             >
-              <span>💬</span>
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />
+              </svg>
               <span>Reserve via WhatsApp</span>
             </button>
           </div>
@@ -172,7 +177,10 @@ export function PublicStayPage() {
               </h1>
               {(property.address || settings.address) && (
                 <p className="mt-2 text-sm text-stone-600 flex items-center gap-1.5">
-                  <span>📍</span>
+                  <svg className="w-4 h-4 text-stone-500 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
                   <span>{property.address || settings.address}</span>
                 </p>
               )}
@@ -194,16 +202,28 @@ export function PublicStayPage() {
             </h3>
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
               <div className="flex items-center gap-2 rounded-xl bg-stone-50 p-2.5 border border-stone-100 font-medium text-stone-800">
-                <span className="text-base">⚡</span> 24/7 Power / Gen
+                <svg className="w-4 h-4 text-amber-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
+                </svg>
+                <span>24/7 Power / Gen</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-stone-50 p-2.5 border border-stone-100 font-medium text-stone-800">
-                <span className="text-base">❄️</span> Air Conditioning
+                <svg className="w-4 h-4 text-cyan-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.75 17L9 20l-1 1h8l-1-1-.75-3M3 13h18M5 17h14a2 2 0 002-2V5a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                </svg>
+                <span>Air Conditioning</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-stone-50 p-2.5 border border-stone-100 font-medium text-stone-800">
-                <span className="text-base">📶</span> High-Speed Wi-Fi
+                <svg className="w-4 h-4 text-blue-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M8.111 16.404a5.5 5.5 0 017.778 0M12 20h.01m-7.08-7.071c3.904-3.905 10.236-3.905 14.141 0M1.394 9.393c5.857-5.857 15.355-5.857 21.213 0" />
+                </svg>
+                <span>High-Speed Wi-Fi</span>
               </div>
               <div className="flex items-center gap-2 rounded-xl bg-stone-50 p-2.5 border border-stone-100 font-medium text-stone-800">
-                <span className="text-base">🛡️</span> 24/7 Security
+                <svg className="w-4 h-4 text-emerald-600 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z" />
+                </svg>
+                <span>24/7 Security</span>
               </div>
             </div>
           </div>
@@ -360,9 +380,14 @@ export function PublicStayPage() {
                   href={`https://www.google.com/maps?q=${property.latitude},${property.longitude}`}
                   target="_blank"
                   rel="noreferrer"
-                  className="mt-2 inline-flex items-center gap-1 text-xs font-semibold text-blue-600 hover:underline"
+                  className="mt-2 inline-flex items-center gap-1.5 text-xs font-semibold text-blue-600 hover:underline"
                 >
-                  <span>🗺️</span> Open in Google Maps
+                  <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
+                    <polygon points="1 6 1 22 8 18 16 22 23 18 23 2 16 6 8 2 1 6" />
+                    <line x1="8" y1="2" x2="8" y2="18" />
+                    <line x1="16" y1="6" x2="16" y2="22" />
+                  </svg>
+                  <span>Open in Google Maps</span>
                 </a>
               ) : null}
             </div>

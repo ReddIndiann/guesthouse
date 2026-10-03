@@ -18,6 +18,8 @@ import { useGuestplace } from '../../context/GuestplaceContext'
 import { StatusLabel } from '../ui/StatusLabel'
 import { formatRateSummary, roomHasAirConditioning } from '../../utils/pricing'
 import { RoomFormDialog } from './RoomFormDialog'
+import { CheckoutSettlementModal } from '../bookings/CheckoutSettlementModal'
+import type { SettlementInput } from '../../lib/firestore'
 
 interface RoomDetailDialogProps {
   room: Room | null
@@ -46,10 +48,9 @@ export function RoomDetailDialog({
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [deleting, setDeleting] = useState(false)
   const [deleteError, setDeleteError] = useState<string | null>(null)
+  const [checkoutModalOpen, setCheckoutModalOpen] = useState(false)
 
   if (!room) return null
-
-
 
   const activeBooking = getBookingForRoom(room.id)
   const showCheckOut = activeBooking?.status === 'checked_in' && can('bookings.checkout')
@@ -59,13 +60,28 @@ export function RoomDetailDialog({
   const canBook = room.status === 'available' && can('bookings.create')
 
   const handleStatusUpdate = () => {
+    // If the room is currently occupied with an active booking, require settlement/checkout instead of silent status change
+    if (room.status === 'occupied' && newStatus !== 'occupied') {
+      const balance = activeBooking ? Math.max(0, activeBooking.totalAmount - (activeBooking.amountPaid || 0)) : 0
+      if (activeBooking && balance > 0) {
+        setCheckoutModalOpen(true)
+        return
+      }
+    }
     updateRoomStatus(room.id, newStatus)
     onClose()
   }
 
   const handleCheckOut = () => {
     if (activeBooking) {
-      checkOut(activeBooking.id)
+      setCheckoutModalOpen(true)
+    }
+  }
+
+  const handleConfirmCheckout = async (settlement?: SettlementInput) => {
+    if (activeBooking) {
+      await checkOut(activeBooking.id, settlement)
+      setCheckoutModalOpen(false)
       onClose()
     }
   }
@@ -257,6 +273,15 @@ export function RoomDetailDialog({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <CheckoutSettlementModal
+        open={checkoutModalOpen}
+        onClose={() => setCheckoutModalOpen(false)}
+        booking={activeBooking || null}
+        room={room}
+        guestName={guestName}
+        onConfirmCheckout={handleConfirmCheckout}
+      />
     </>
   )
 }

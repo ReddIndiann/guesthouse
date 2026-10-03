@@ -134,7 +134,7 @@ export function RoomFormDialog({
 
         {isAirbnb && (
           <TextField
-            label="🔑 Unit Door PIN / Keybox Code"
+            label="Unit Door PIN / Keybox Code"
             value={form.doorCode ?? ''}
             onChange={(e) => setForm((f) => ({ ...f, doorCode: e.target.value }))}
             placeholder="e.g. 4829# or Lockbox 1234"
