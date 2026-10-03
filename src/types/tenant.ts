@@ -47,7 +47,7 @@ export interface RegisterOrgInput {
   organizationName: string
   ownerName: string
   email: string
-  password: string
+  password?: string
   phone?: string
   notes?: string
   estimatedProperties?: number

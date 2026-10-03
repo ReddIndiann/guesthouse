@@ -9,11 +9,9 @@ import {
   where,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { createUserWithEmailAndPassword } from 'firebase/auth'
-import { auth, db } from './firebase'
+import { db } from './firebase'
 import { seedDefaultRoles, ensureSystemAdminRole } from './accessControl'
 import { DEFAULT_PROPERTY_SETTINGS } from '../types'
-import { SYSTEM_ADMIN_ROLE_ID } from '../types/auth'
 import type {
   CreateOrganizationInput,
   CreatePropertyInput,
@@ -35,19 +33,17 @@ export function slugify(text: string): string {
 }
 
 /**
- * Self-service registration: Submits an organization into the waitlist / pending approval
+/**
+ * Self-service waitlist / invitation request:
+ * Records the prospective organization details for review and invitation.
+ * Does NOT create a Firebase Auth user upfront.
  */
-export async function registerOrganization(input: RegisterOrgInput): Promise<{ orgId: string; userUid: string }> {
-  // 1. Create the Firebase Auth account for the organization owner
-  const cred = await createUserWithEmailAndPassword(auth, input.email, input.password)
-  const user = cred.user
-
+export async function registerOrganization(input: RegisterOrgInput): Promise<{ orgId: string }> {
   const orgRef = doc(collection(db, ORGS_COLLECTION))
   const orgId = orgRef.id
   const now = new Date().toISOString()
   const slug = `${slugify(input.organizationName)}-${orgId.slice(0, 5)}`
 
-  // 2. Create the Organization in pending_approval state
   const newOrg: Organization = {
     id: orgId,
     name: input.organizationName,
@@ -55,33 +51,21 @@ export async function registerOrganization(input: RegisterOrgInput): Promise<{ o
     status: 'pending_approval',
     contactEmail: input.email,
     contactPhone: input.phone || '',
-    ownerUid: user.uid,
+    ownerUid: '',
     ownerName: input.ownerName,
     plan: 'starter',
     createdAt: now,
     notes: input.notes || '',
     propertiesCount: 0,
-    maxProperties: input.estimatedProperties || 3,
+    maxProperties: input.estimatedProperties || 1,
+    location: input.location || '',
+    imageUrl: input.imageUrl || '',
+    latitude: input.latitude,
+    longitude: input.longitude,
   }
 
   await setDoc(orgRef, newOrg)
-
-  // 3. Create the initial staff record marked as pending approval
-  await setDoc(doc(db, 'staff', user.uid), {
-    uid: user.uid,
-    email: input.email,
-    displayName: input.ownerName,
-    organizationId: orgId,
-    organizationName: input.organizationName,
-    propertyId: '',
-    assignmentType: 'direct',
-    roleId: SYSTEM_ADMIN_ROLE_ID,
-    userType: 'org_admin',
-    createdAt: now,
-    pendingApproval: true,
-  })
-
-  return { orgId, userUid: user.uid }
+  return { orgId }
 }
 
 /**
