@@ -24,8 +24,8 @@ export interface Organization {
   maxProperties?: number
   imageUrl?: string
   location?: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
   propertyType?: 'hotel' | 'guesthouse' | 'airbnb' | 'resort' | 'other'
   unitsRange?: string
 }
@@ -41,8 +41,8 @@ export interface PropertyItem {
   settings?: PropertySettings
   roomsCount?: number
   imageUrl?: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
 }
 
 export interface RegisterOrgInput {
@@ -55,8 +55,8 @@ export interface RegisterOrgInput {
   estimatedProperties?: number
   imageUrl?: string
   location?: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
   propertyType?: 'hotel' | 'guesthouse' | 'airbnb' | 'resort' | 'other'
   unitsRange?: string
 }
@@ -72,8 +72,8 @@ export interface CreateOrganizationInput {
   initialPropertyName?: string
   imageUrl?: string
   location?: string
-  latitude?: number
-  longitude?: number
+  latitude?: number | null
+  longitude?: number | null
   accentColor?: string
   colorThemeId?: string
 }

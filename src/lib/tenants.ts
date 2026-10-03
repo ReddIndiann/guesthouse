@@ -32,7 +32,16 @@ export function slugify(text: string): string {
     .replace(/^-+|-+$/g, '')
 }
 
-/**
+function cleanUndefined<T extends Record<string, any>>(obj: T): T {
+  const result: any = {}
+  for (const [key, val] of Object.entries(obj)) {
+    if (val !== undefined) {
+      result[key] = val
+    }
+  }
+  return result
+}
+
 /**
  * Self-service waitlist / invitation request:
  * Records the prospective organization details for review and invitation.
@@ -60,13 +69,13 @@ export async function registerOrganization(input: RegisterOrgInput): Promise<{ o
     maxProperties: input.estimatedProperties || 1,
     location: input.location || '',
     imageUrl: input.imageUrl || '',
-    latitude: input.latitude,
-    longitude: input.longitude,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
     propertyType: input.propertyType || 'guesthouse',
     unitsRange: input.unitsRange || '',
   }
 
-  await setDoc(orgRef, newOrg)
+  await setDoc(orgRef, cleanUndefined(newOrg))
   return { orgId }
 }
 
@@ -242,11 +251,11 @@ export async function createOrganizationDirectly(
     maxProperties: 5,
     imageUrl: input.imageUrl || '',
     location: input.location || '',
-    latitude: input.latitude,
-    longitude: input.longitude,
+    latitude: input.latitude ?? null,
+    longitude: input.longitude ?? null,
   }
 
-  await setDoc(orgRef, newOrg)
+  await setDoc(orgRef, cleanUndefined(newOrg))
   return orgId
 }
 
