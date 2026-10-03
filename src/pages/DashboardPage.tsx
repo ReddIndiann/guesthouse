@@ -1,4 +1,5 @@
 import { useMemo } from 'react'
+import { Link } from 'react-router-dom'
 import { Panel } from '../components/ui/Panel'
 import { PageHeader } from '../components/ui/PageHeader'
 import { StatCard } from '../components/dashboard/StatCard'
@@ -143,9 +144,25 @@ export function DashboardPage() {
 
       <div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2">
         <Panel>
-          <h2 className="mb-3 text-sm font-medium text-[var(--color-ink)] sm:mb-4">Arrivals</h2>
+          <div className="mb-3 flex items-start justify-between sm:mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-[var(--color-ink)]">Today's Arrivals</h2>
+                <span className="rounded-full bg-emerald-50 px-2 py-0.5 text-[10px] font-semibold text-emerald-800 border border-emerald-200">
+                  Today Only
+                </span>
+              </div>
+              <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                Check-ins arriving or in-house today
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-[var(--color-muted)] bg-[var(--color-cream)] px-2 py-0.5 rounded-md">
+              {todayCheckIns.length}
+            </span>
+          </div>
+
           {todayCheckIns.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">Nothing scheduled today.</p>
+            <p className="text-sm text-[var(--color-muted)] py-2">No arrivals scheduled for today.</p>
           ) : (
             <ul className="divide-y divide-[var(--color-line)]">
               {todayCheckIns.map((booking) => {
@@ -176,9 +193,25 @@ export function DashboardPage() {
         </Panel>
 
         <Panel>
-          <h2 className="mb-3 text-sm font-medium text-[var(--color-ink)] sm:mb-4">Departures</h2>
+          <div className="mb-3 flex items-start justify-between sm:mb-4">
+            <div>
+              <div className="flex items-center gap-2">
+                <h2 className="text-sm font-semibold text-[var(--color-ink)]">Today's Departures</h2>
+                <span className="rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-semibold text-amber-800 border border-amber-200">
+                  Today Only
+                </span>
+              </div>
+              <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                Check-outs and room turnovers due today
+              </p>
+            </div>
+            <span className="text-xs font-semibold text-[var(--color-muted)] bg-[var(--color-cream)] px-2 py-0.5 rounded-md">
+              {todayCheckOuts.length}
+            </span>
+          </div>
+
           {todayCheckOuts.length === 0 ? (
-            <p className="text-sm text-[var(--color-muted)]">No departures today.</p>
+            <p className="text-sm text-[var(--color-muted)] py-2">No departures scheduled for today.</p>
           ) : (
             <ul className="divide-y divide-[var(--color-line)]">
               {todayCheckOuts.map((booking) => {
@@ -198,9 +231,26 @@ export function DashboardPage() {
         </Panel>
       </div>
 
+      {/* Helpful navigation hint */}
+      <div className="mt-3 flex flex-col sm:flex-row sm:items-center justify-between gap-1 text-xs text-[var(--color-muted)] px-1">
+        <span>Arrivals & Departures reflect today's front-desk schedule only.</span>
+        <Link to="/reservations" className="font-medium text-[var(--color-accent)] hover:underline flex items-center gap-1">
+          <span>View Tomorrow & Upcoming Calendar</span>
+          <span>→</span>
+        </Link>
+      </div>
+
       {upcomingReservations.length > 0 && (
         <Panel className="mt-4 sm:mt-6">
-          <h2 className="mb-3 text-sm font-medium text-[var(--color-ink)] sm:mb-4">Upcoming Reservations</h2>
+          <div className="mb-3 flex items-center justify-between sm:mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-[var(--color-ink)]">Upcoming Reservations (Tomorrow & Later)</h2>
+              <p className="text-xs text-[var(--color-muted)] mt-0.5">Advance bookings scheduled for future dates</p>
+            </div>
+            <Link to="/reservations" className="text-xs font-semibold text-[var(--color-accent)] hover:underline">
+              View All Calendar →
+            </Link>
+          </div>
           <ul className="divide-y divide-[var(--color-line)]">
             {upcomingReservations.map((booking) => {
               const guest = getGuest(booking.guestId)

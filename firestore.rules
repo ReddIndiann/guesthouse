@@ -76,11 +76,7 @@ service cloud.firestore {
     }
 
     match /organizations/{orgId} {
-      allow read: if isSignedIn() && (
-        isSuperAdmin() ||
-        request.auth.uid == resource.data.ownerUid ||
-        (hasStaffProfile() && staffDoc().data.organizationId == orgId)
-      );
+      allow read: if true; // Allows onboarding invite verification and workspace lookup
       allow create: if isSignedIn();
       allow update, delete: if isSuperAdmin() || (
         hasStaffProfile() && staffDoc().data.organizationId == orgId && staffDoc().data.userType == 'org_admin'
@@ -96,11 +92,25 @@ service cloud.firestore {
       );
       allow create: if isSignedIn() && (
         isSuperAdmin() ||
-        request.auth.uid == uid ||
-        (hasStaffProfile() && hasPermission('users.create') && request.resource.data.propertyId == staffPropertyId())
+        (
+          request.auth.uid == uid &&
+          request.resource.data.isSuperAdmin != true &&
+          request.resource.data.userType != 'super_admin'
+        ) ||
+        (
+          hasStaffProfile() &&
+          hasPermission('users.create') &&
+          request.resource.data.propertyId == staffPropertyId() &&
+          request.resource.data.isSuperAdmin != true &&
+          request.resource.data.userType != 'super_admin'
+        )
       );
       allow update: if isSuperAdmin() || (
-        hasStaffProfile() && hasPermission('users.assign') && resource.data.propertyId == staffPropertyId()
+        hasStaffProfile() &&
+        hasPermission('users.assign') &&
+        resource.data.propertyId == staffPropertyId() &&
+        request.resource.data.isSuperAdmin == resource.data.isSuperAdmin &&
+        request.resource.data.userType == resource.data.userType
       );
       allow delete: if isSuperAdmin();
     }
@@ -119,7 +129,7 @@ service cloud.firestore {
     }
 
     match /properties/{propertyId}/rooms/{document=**} {
-      allow read: if canAccessProperty(propertyId) && hasPermission('rooms.view');
+      allow read: if true; // Public guest stay page displays room categories and availability count
       allow write: if canAccessProperty(propertyId) && canWriteProperty();
     }
 
@@ -171,8 +181,14 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    match /properties/{propertyId}/expenses/{document=**} {
+      allow read: if canAccessProperty(propertyId) && (hasPermission('reports.view') || canManageShifts());
+      allow create: if canAccessProperty(propertyId) && canWriteProperty();
+      allow update, delete: if canAccessProperty(propertyId) && (isSuperAdmin() || hasPermission('shifts.manage'));
+    }
+
     match /properties/{propertyId} {
-      allow read: if canAccessProperty(propertyId);
+      allow read: if true; // Public stay page needs property details and rates
       allow write: if canAccessProperty(propertyId) && (isSuperAdmin() || hasPermission('rooms.update'));
     }
 
