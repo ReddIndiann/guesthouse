@@ -19,6 +19,7 @@ import { ReportsPage } from './pages/ReportsPage'
 import { FolioPage } from './pages/FolioPage'
 import { SuggestionPage } from './pages/SuggestionPage'
 import { PublicStayPage } from './pages/PublicStayPage'
+import { InviteAcceptancePage } from './pages/InviteAcceptancePage'
 import { AdminGuard } from './pages/admin/AdminGuard'
 
 function AccessGuard() {
@@ -56,6 +57,7 @@ function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={<LoginPage />} />
+          <Route path="/invite/:token" element={<InviteAcceptancePage />} />
           <Route path="/folio/:token" element={<FolioPage />} />
           <Route path="/suggestions/:token" element={<SuggestionPage />} />
           <Route path="/stay/:identifier" element={<PublicStayPage />} />

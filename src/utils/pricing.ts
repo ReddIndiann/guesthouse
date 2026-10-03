@@ -51,7 +51,7 @@ export function calculateBookingTotal(
     let nightly = room.nightlyPrice
     if (!nightly && options?.propertySettings?.propertyType === 'airbnb') {
       nightly = options.propertySettings.airbnbRates?.nightlyRate ?? 650
-    } else if (!nightly && options?.propertySettings?.propertyType === 'hotel') {
+    } else if (!nightly && (options?.propertySettings?.propertyType === 'hotel' || options?.propertySettings?.propertyType === 'resort')) {
       if (room.type === 'suite') {
         nightly = options.propertySettings.hotelRates?.suiteNightly ?? 950
       } else {

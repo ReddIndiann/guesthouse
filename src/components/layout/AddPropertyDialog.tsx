@@ -1,4 +1,5 @@
 import { useState, useRef, type FormEvent, type ChangeEvent } from 'react'
+import { createPortal } from 'react-dom'
 import { useTenant } from '../../context/TenantContext'
 import { compressImageFile } from '../../utils/image'
 import { PRESET_COLOR_THEMES } from '../../utils/theme'
@@ -11,6 +12,7 @@ interface AddPropertyDialogProps {
 export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
   const { addProperty } = useTenant()
   const [name, setName] = useState('')
+  const [propertyType, setPropertyType] = useState<'hotel' | 'guesthouse' | 'airbnb' | 'resort'>('guesthouse')
   const [code, setCode] = useState('')
   const [address, setAddress] = useState('')
   const [phone, setPhone] = useState('')
@@ -76,6 +78,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
     try {
       await addProperty({
         name: name.trim(),
+        propertyType,
         code: code.trim() || undefined,
         address: address.trim() || undefined,
         phone: phone.trim() || undefined,
@@ -86,6 +89,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
         colorThemeId,
       })
       setName('')
+      setPropertyType('guesthouse')
       setCode('')
       setAddress('')
       setPhone('')
@@ -102,9 +106,16 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
     }
   }
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm animate-in fade-in duration-150">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-[var(--color-line)] max-h-[90vh] overflow-y-auto">
+  const modalContent = (
+    <div
+      role="dialog"
+      aria-modal="true"
+      className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150 overflow-y-auto"
+      onClick={(e) => {
+        if (e.target === e.currentTarget && !submitting) onClose()
+      }}
+    >
+      <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-2xl border border-[var(--color-line)] max-h-[90vh] overflow-y-auto my-auto">
         <div className="flex items-center justify-between pb-4 border-b border-[var(--color-line)]">
           <div>
             <h2 className="text-lg font-bold text-[var(--color-ink)]">Add New Property / Branch</h2>
@@ -122,12 +133,13 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
         </div>
 
         {error && (
-          <div className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700">
+          <div className="mt-4 rounded-xl bg-rose-50 p-3 text-xs text-rose-700 border border-rose-200">
             {error}
           </div>
         )}
 
         <form onSubmit={handleSubmit} className="mt-5 space-y-4">
+          {/* Property Name */}
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] mb-1">
               Property Name *
@@ -140,6 +152,38 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               onChange={(e) => setName(e.target.value)}
               className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] px-3.5 py-2.5 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:bg-white transition"
             />
+          </div>
+
+          {/* Property Type Selection */}
+          <div>
+            <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] mb-1.5">
+              Property Type
+            </label>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+              {[
+                { id: 'hotel', label: 'Hotel', icon: '🏨' },
+                { id: 'guesthouse', label: 'Guest House', icon: '🏡' },
+                { id: 'airbnb', label: 'Airbnb / Apt', icon: '🔑' },
+                { id: 'resort', label: 'Resort', icon: '🌴' },
+              ].map((t) => {
+                const isSelected = propertyType === t.id
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setPropertyType(t.id as any)}
+                    className={`flex items-center justify-center gap-1.5 rounded-xl border p-2 text-xs font-medium transition cursor-pointer ${
+                      isSelected
+                        ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)] shadow-2xs font-semibold'
+                        : 'border-[var(--color-line)] bg-white text-[var(--color-ink)] hover:bg-[var(--color-cream)]'
+                    }`}
+                  >
+                    <span>{t.icon}</span>
+                    <span className="truncate">{t.label}</span>
+                  </button>
+                )
+              })}
+            </div>
           </div>
 
           {/* Photo / Logo Selection */}
@@ -218,7 +262,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
             )}
           </div>
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] mb-1">
                 Branch Code
@@ -237,7 +281,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
               </label>
               <input
                 type="text"
-                placeholder="+1 555-0199"
+                placeholder="+233 24 123 4567"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] px-3.5 py-2.5 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:bg-white transition"
@@ -247,11 +291,11 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
 
           <div>
             <label className="block text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)] mb-1">
-              Address
+              Address / Location
             </label>
             <input
               type="text"
-              placeholder="123 Ocean Drive, Suite 100"
+              placeholder="e.g. 123 Ocean Drive, East Legon"
               value={address}
               onChange={(e) => setAddress(e.target.value)}
               className="w-full rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] px-3.5 py-2.5 text-sm text-[var(--color-ink)] focus:outline-none focus:ring-2 focus:ring-[var(--color-accent)] focus:bg-white transition"
@@ -312,7 +356,7 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
                     }}
                     className={`flex items-center gap-1.5 rounded-lg border px-2 py-1.5 text-xs transition cursor-pointer ${
                       isSelected
-                        ? 'border-[var(--color-ink)] bg-white font-medium shadow-xs'
+                        ? 'border-[var(--color-ink)] bg-white font-medium shadow-xs ring-1 ring-[var(--color-ink)]'
                         : 'border-[var(--color-line)] bg-white/70 text-[var(--color-muted)] hover:bg-white'
                     }`}
                   >
@@ -338,13 +382,22 @@ export function AddPropertyDialog({ open, onClose }: AddPropertyDialogProps) {
             <button
               type="submit"
               disabled={submitting || !name.trim()}
-              className="rounded-xl bg-[var(--color-accent)] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-50 transition"
+              className="rounded-xl bg-[var(--color-accent)] px-5 py-2 text-sm font-semibold text-white shadow-sm hover:opacity-95 disabled:opacity-50 transition flex items-center gap-2"
             >
-              {submitting ? 'Creating…' : 'Create Property'}
+              {submitting ? (
+                <>
+                  <div className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                  <span>Creating…</span>
+                </>
+              ) : (
+                <span>Create Property</span>
+              )}
             </button>
           </div>
         </form>
       </div>
     </div>
   )
+
+  return createPortal(modalContent, document.body)
 }

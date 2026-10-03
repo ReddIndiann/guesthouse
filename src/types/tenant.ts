@@ -28,6 +28,9 @@ export interface Organization {
   longitude?: number | null
   propertyType?: 'hotel' | 'guesthouse' | 'airbnb' | 'resort' | 'other'
   unitsRange?: string
+  primaryPropertyId?: string
+  inviteToken?: string | null
+  inviteAcceptedAt?: string | null
 }
 
 export interface PropertyItem {
@@ -88,4 +91,5 @@ export interface CreatePropertyInput {
   longitude?: number
   accentColor?: string
   colorThemeId?: string
+  propertyType?: 'hotel' | 'guesthouse' | 'airbnb' | 'resort' | 'other'
 }

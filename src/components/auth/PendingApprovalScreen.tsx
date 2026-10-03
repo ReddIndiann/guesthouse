@@ -1,9 +1,7 @@
 import { useAuth } from '../../context/AuthContext'
-import { useTenant } from '../../context/TenantContext'
 
 export function PendingApprovalScreen() {
   const { profile, signOut } = useAuth()
-  const { organization } = useTenant()
 
   return (
     <div className="min-h-screen bg-[var(--color-cream)] flex items-center justify-center p-4">
@@ -22,7 +20,7 @@ export function PendingApprovalScreen() {
           <p className="text-sm text-[var(--color-muted)] leading-relaxed">
             Thank you for registering{' '}
             <strong className="text-[var(--color-ink)] font-medium">
-              {organization?.name || profile?.organizationName || 'your organization'}
+              {profile?.organizationName || 'your organization'}
             </strong>
             . Your application is currently awaiting administrator approval.
           </p>

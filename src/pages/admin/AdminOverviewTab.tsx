@@ -134,6 +134,11 @@ export function AdminOverviewTab({
                         >
                           {isPending ? 'Pending review' : org.status}
                         </span>
+                        {org.propertyType && (
+                          <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.2 text-[10px] font-medium text-blue-800 capitalize">
+                            {org.propertyType === 'airbnb' ? '🔑 Airbnb' : org.propertyType === 'hotel' ? '🏨 Hotel' : org.propertyType === 'resort' ? '🌴 Resort' : '🏡 Guest House'}
+                          </span>
+                        )}
                       </div>
                       <p className="text-xs text-[var(--color-muted)] truncate">
                         {org.ownerName} · {org.contactEmail} {org.location ? `· ${org.location}` : ''}

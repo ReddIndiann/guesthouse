@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   getDoc,
+  getDocs,
   onSnapshot,
   query,
   setDoc,
@@ -9,13 +10,15 @@ import {
   where,
   type Unsubscribe,
 } from 'firebase/firestore'
-import { db } from './firebase'
+import { createUserWithEmailAndPassword, signOut } from 'firebase/auth'
+import { auth, db } from './firebase'
 import { seedDefaultRoles, ensureSystemAdminRole } from './accessControl'
 import { DEFAULT_PROPERTY_SETTINGS } from '../types'
 import type {
   CreateOrganizationInput,
   CreatePropertyInput,
   Organization,
+  OrganizationPlan,
   PropertyItem,
   RegisterOrgInput,
 } from '../types/tenant'
@@ -104,7 +107,14 @@ export function subscribeToAllOrganizations(
 /**
  * Approves a pending organization from the waitlist
  */
-export async function approveOrganization(orgId: string, approvedByUid: string): Promise<void> {
+/**
+ * Approves a pending organization from the waitlist
+ * Generates an onboarding invite token if the owner hasn't registered a password yet.
+ */
+export async function approveOrganization(
+  orgId: string,
+  approvedByUid: string,
+): Promise<{ inviteToken?: string; propertyId: string }> {
   const orgSnap = await getDoc(doc(db, ORGS_COLLECTION, orgId))
   if (!orgSnap.exists()) throw new Error('Organization not found')
   const org = orgSnap.data() as Organization
@@ -115,7 +125,7 @@ export async function approveOrganization(orgId: string, approvedByUid: string):
   const initialPropName = `${org.name} - Main Branch`
 
   // 1. Create the default primary property
-  await setDoc(propRef, {
+  await setDoc(propRef, cleanUndefined({
     id: initialPropId,
     organizationId: orgId,
     name: initialPropName,
@@ -133,21 +143,34 @@ export async function approveOrganization(orgId: string, approvedByUid: string):
       phone: org.contactPhone || '',
       propertyType: org.propertyType || 'guesthouse',
     },
-  })
+  }))
 
   // 2. Initialize roles for the new property
   await seedDefaultRoles(initialPropId)
   await ensureSystemAdminRole(initialPropId)
 
-  // 3. Activate the organization
-  await updateDoc(doc(db, ORGS_COLLECTION, orgId), {
-    status: 'active',
-    approvedAt: now,
-    approvedBy: approvedByUid,
-    propertiesCount: 1,
-  })
+  // 3. Generate onboarding invite token if owner hasn't registered yet
+  let inviteToken: string | undefined = undefined
+  if (!org.ownerUid) {
+    inviteToken =
+      org.inviteToken ||
+      `inv_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36)}`
+  }
 
-  // 4. Update the owner's staff profile
+  // 4. Activate the organization
+  await updateDoc(
+    doc(db, ORGS_COLLECTION, orgId),
+    cleanUndefined({
+      status: 'active',
+      approvedAt: now,
+      approvedBy: approvedByUid,
+      propertiesCount: 1,
+      primaryPropertyId: initialPropId,
+      inviteToken: inviteToken || null,
+    }),
+  )
+
+  // 5. Update the owner's staff profile if already set
   if (org.ownerUid) {
     await updateDoc(doc(db, 'staff', org.ownerUid), {
       propertyId: initialPropId,
@@ -155,7 +178,120 @@ export async function approveOrganization(orgId: string, approvedByUid: string):
       pendingApproval: false,
     })
   }
+
+  return { inviteToken, propertyId: initialPropId }
 }
+
+/**
+ * Generate or refresh an onboarding invitation token for an organization
+ */
+export async function generateOrRefreshInviteToken(orgId: string): Promise<string> {
+  const token = `inv_${Math.random().toString(36).slice(2, 9)}${Date.now().toString(36)}`
+  await updateDoc(doc(db, ORGS_COLLECTION, orgId), {
+    inviteToken: token,
+  })
+  return token
+}
+
+/**
+ * Super Admin updates an organization's plan and max branch quota
+ */
+export async function updateOrganizationPlanAndQuota(
+  orgId: string,
+  plan: OrganizationPlan,
+  maxProperties: number,
+): Promise<void> {
+  await updateDoc(doc(db, ORGS_COLLECTION, orgId), {
+    plan,
+    maxProperties: Number(maxProperties) || 1,
+  })
+}
+
+/**
+ * Lookup organization and primary branch details via an invite token
+ */
+export async function getOrganizationByInviteToken(token: string): Promise<{
+  org: Organization
+  property?: PropertyItem
+}> {
+  if (!token) throw new Error('Invalid invite link.')
+  const q = query(collection(db, ORGS_COLLECTION), where('inviteToken', '==', token))
+  const snap = await getDocs(q)
+  if (snap.empty) {
+    throw new Error('This invitation link is invalid or has expired.')
+  }
+  const orgDoc = snap.docs[0]
+  const org = { id: orgDoc.id, ...orgDoc.data() } as Organization
+
+  let property: PropertyItem | undefined
+  if (org.primaryPropertyId) {
+    const pSnap = await getDoc(doc(db, PROPERTIES_COLLECTION, org.primaryPropertyId))
+    if (pSnap.exists()) {
+      property = { id: pSnap.id, ...pSnap.data() } as PropertyItem
+    }
+  }
+
+  return { org, property }
+}
+
+/**
+ * prospective owner accepts an onboarding invite:
+ * Creates their auth account and staff record, granting primary admin access to their property.
+ */
+export async function acceptOrganizationInvite(
+  token: string,
+  password: string,
+  ownerName?: string,
+): Promise<{ userUid: string; orgId: string }> {
+  const { org, property } = await getOrganizationByInviteToken(token)
+
+  if (org.inviteAcceptedAt && org.ownerUid) {
+    throw new Error('This workspace invitation has already been accepted. Please sign in directly.')
+  }
+
+  const primaryPropId = org.primaryPropertyId || property?.id || ''
+  const displayName = (ownerName || org.ownerName || 'Property Admin').trim()
+  const email = org.contactEmail.trim().toLowerCase()
+
+  // Sign out any active user first to avoid session conflict
+  if (auth.currentUser) {
+    await signOut(auth)
+  }
+
+  // Create Firebase Auth user
+  const userCredential = await createUserWithEmailAndPassword(auth, email, password)
+  const user = userCredential.user
+  const now = new Date().toISOString()
+
+  // Create staff document
+  const staffData = {
+    uid: user.uid,
+    email: email,
+    displayName: displayName,
+    propertyId: primaryPropId,
+    organizationId: org.id,
+    organizationName: org.name,
+    assignmentType: 'direct',
+    roleId: 'system-admin',
+    isSuperAdmin: false,
+    userType: 'org_admin',
+    accessibleProperties: primaryPropId ? [primaryPropId] : [],
+    createdAt: now,
+    createdBy: 'invitation_link',
+  }
+
+  await setDoc(doc(db, 'staff', user.uid), staffData)
+
+  // Update organization with ownerUid and mark accepted
+  await updateDoc(doc(db, ORGS_COLLECTION, org.id), {
+    ownerUid: user.uid,
+    ownerName: displayName,
+    inviteAcceptedAt: now,
+  })
+
+  return { userUid: user.uid, orgId: org.id }
+}
+
 
 /**
  * Rejects a pending organization request
@@ -321,6 +457,7 @@ export async function createOrgProperty(
       name: input.name,
       address: input.address || '',
       phone: input.phone || '',
+      propertyType: input.propertyType || 'guesthouse',
       accentColor: input.accentColor || '#3d6b4f',
       colorThemeId: input.colorThemeId || 'sage',
     },

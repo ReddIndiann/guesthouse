@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { PageHeader } from '../components/ui/PageHeader'
 import { Panel } from '../components/ui/Panel'
 import { useRbac } from '../context/RbacContext'
@@ -72,11 +73,13 @@ export function SettingsPage() {
   const { currentProperty, currentPropertyId, organization, isOrgAdmin, isSuperAdmin } = useTenant()
   const { settings, updateSettings } = useGuestplace()
   const canEdit = can('rooms.update') || isSuperAdmin || isOrgAdmin
+  const canChangeModel = isOrgAdmin || isSuperAdmin
 
   const [form, setForm] = useState<PropertySettings>(settings)
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [pendingCategorySwitch, setPendingCategorySwitch] = useState<PropertyCategory | null>(null)
 
   useEffect(() => {
     setForm(settings)
@@ -140,31 +143,71 @@ export function SettingsPage() {
                 Operating Model / Category
               </label>
               <span className="text-[11px] text-[var(--color-muted)]">
-                Adapts rates, booking fields, and guest receipts
+                {canChangeModel
+                  ? 'Click a category to change (Owner only)'
+                  : 'Fixed category (Account Owner only)'}
               </span>
             </div>
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
-              {CATEGORY_OPTIONS.map((cat) => {
-                const isSelected = (form.propertyType || 'guesthouse') === cat.id
-                return (
-                  <button
-                    key={cat.id}
-                    type="button"
-                    disabled={!canEdit}
-                    onClick={() => setForm((f) => ({ ...f, propertyType: cat.id }))}
-                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition ${
-                      isSelected
-                        ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-ink)] font-semibold shadow-xs'
-                        : 'border-[var(--color-line)] bg-white text-[var(--color-muted)] hover:border-[var(--color-muted)]/50'
-                    }`}
-                  >
-                    <span className="text-xl mb-1">{cat.icon}</span>
-                    <span className="text-xs font-medium">{cat.label}</span>
-                    <span className="text-[10px] text-[var(--color-muted)] mt-0.5 leading-tight">{cat.desc}</span>
-                  </button>
-                )
-              })}
-            </div>
+
+            {!canChangeModel ? (
+              // Read-only locked view for regular staff
+              <div className="flex items-center justify-between p-3.5 rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)]">
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">
+                    {CATEGORY_OPTIONS.find((c) => c.id === (form.propertyType || 'guesthouse'))?.icon || '🏡'}
+                  </span>
+                  <div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold text-[var(--color-ink)]">
+                        {CATEGORY_OPTIONS.find((c) => c.id === (form.propertyType || 'guesthouse'))?.label || 'Guest House / Lodge'}
+                      </span>
+                      <span className="rounded-full bg-emerald-50 border border-emerald-200 px-2 py-0.2 text-[10px] font-medium text-emerald-800">
+                        Active Model
+                      </span>
+                    </div>
+                    <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                      {CATEGORY_OPTIONS.find((c) => c.id === (form.propertyType || 'guesthouse'))?.desc}
+                    </p>
+                  </div>
+                </div>
+                <span className="text-[11px] text-[var(--color-muted)] hidden sm:inline">
+                  🔒 Locked for staff
+                </span>
+              </div>
+            ) : (
+              // Editable category selector with confirmation guard for Account Owner / Super Admin
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+                {CATEGORY_OPTIONS.map((cat) => {
+                  const isSelected = (form.propertyType || 'guesthouse') === cat.id
+                  return (
+                    <button
+                      key={cat.id}
+                      type="button"
+                      disabled={!canEdit}
+                      onClick={() => {
+                        if (!isSelected) {
+                          setPendingCategorySwitch(cat.id)
+                        }
+                      }}
+                      className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition ${
+                        isSelected
+                          ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-ink)] font-semibold shadow-xs'
+                          : 'border-[var(--color-line)] bg-white text-[var(--color-muted)] hover:border-[var(--color-accent)] hover:text-[var(--color-ink)] cursor-pointer'
+                      }`}
+                    >
+                      <span className="text-xl mb-1">{cat.icon}</span>
+                      <span className="text-xs font-medium">{cat.label}</span>
+                      <span className="text-[10px] text-[var(--color-muted)] mt-0.5 leading-tight">{cat.desc}</span>
+                      {isSelected && (
+                        <span className="mt-1 text-[9px] font-semibold text-[var(--color-accent)] uppercase tracking-wider">
+                          Active
+                        </span>
+                      )}
+                    </button>
+                  )
+                })}
+              </div>
+            )}
           </div>
 
           <div className="space-y-4 pt-2 border-t border-[var(--color-line)]">
@@ -386,18 +429,24 @@ export function SettingsPage() {
                 </label>
               </div>
             </div>
-          ) : form.propertyType === 'hotel' ? (
+          ) : form.propertyType === 'hotel' || form.propertyType === 'resort' ? (
             <div className="space-y-4 pt-2 border-t border-[var(--color-line)]">
               <div>
-                <h2 className="text-sm font-semibold text-[var(--color-ink)]">Hotel Room Nightly Rates (₵)</h2>
+                <h2 className="text-sm font-semibold text-[var(--color-ink)]">
+                  {form.propertyType === 'resort' ? 'Resort Villa & Room Nightly Rates (₵)' : 'Hotel Room Nightly Rates (₵)'}
+                </h2>
                 <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                  Category nightly rates applied when booking hotel rooms and executive suites.
+                  {form.propertyType === 'resort'
+                    ? 'Category nightly rates applied when booking resort chalets, deluxe rooms, and luxury villas.'
+                    : 'Category nightly rates applied when booking hotel rooms and executive suites.'}
                 </p>
               </div>
 
               <div className="grid gap-3 sm:grid-cols-3">
                 <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
-                  <span className="font-medium text-[var(--color-ink)]">Standard Room (₵/night)</span>
+                  <span className="font-medium text-[var(--color-ink)]">
+                    {form.propertyType === 'resort' ? 'Standard Chalet / Room (₵/night)' : 'Standard Room (₵/night)'}
+                  </span>
                   <div className="flex items-center gap-1 mt-1">
                     <span className="text-[var(--color-muted)]">₵</span>
                     <input
@@ -421,7 +470,9 @@ export function SettingsPage() {
                 </label>
 
                 <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
-                  <span className="font-medium text-[var(--color-ink)]">Deluxe Room (₵/night)</span>
+                  <span className="font-medium text-[var(--color-ink)]">
+                    {form.propertyType === 'resort' ? 'Deluxe Villa / Oceanfront (₵/night)' : 'Deluxe Room (₵/night)'}
+                  </span>
                   <div className="flex items-center gap-1 mt-1">
                     <span className="text-[var(--color-muted)]">₵</span>
                     <input
@@ -445,7 +496,9 @@ export function SettingsPage() {
                 </label>
 
                 <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
-                  <span className="font-medium text-[var(--color-ink)]">Executive Suite (₵/night)</span>
+                  <span className="font-medium text-[var(--color-ink)]">
+                    {form.propertyType === 'resort' ? 'Executive Suite / Presidential Villa (₵/night)' : 'Executive Suite (₵/night)'}
+                  </span>
                   <div className="flex items-center gap-1 mt-1">
                     <span className="text-[var(--color-muted)]">₵</span>
                     <input
@@ -529,6 +582,77 @@ export function SettingsPage() {
           <SuggestionQRPanel propertyId={currentPropertyId} settings={settings} />
         </div>
       )}
+
+      {/* Confirmation Modal when Account Owner switches Operating Model */}
+      {pendingCategorySwitch && (() => {
+        const currentCat = CATEGORY_OPTIONS.find((c) => c.id === (form.propertyType || 'guesthouse'))
+        const targetCat = CATEGORY_OPTIONS.find((c) => c.id === pendingCategorySwitch)
+
+        return createPortal(
+          <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-in fade-in duration-150">
+            <div className="w-full max-w-md rounded-2xl bg-white p-6 shadow-2xl border border-[var(--color-line)] space-y-4">
+              <div className="flex items-start gap-3">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-amber-800 text-lg">
+                  ⚠️
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-[var(--color-ink)]">
+                    Change Operating Model?
+                  </h3>
+                  <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                    This will reconfigure this branch's pricing engine and front-desk workflows.
+                  </p>
+                </div>
+              </div>
+
+              <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-3 text-xs space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[var(--color-muted)]">Current Model:</span>
+                  <span className="font-semibold text-[var(--color-ink)] flex items-center gap-1">
+                    <span>{currentCat?.icon}</span> {currentCat?.label}
+                  </span>
+                </div>
+                <div className="flex items-center justify-between border-t border-[var(--color-line)] pt-1.5">
+                  <span className="text-[var(--color-muted)]">New Model:</span>
+                  <span className="font-semibold text-[var(--color-accent)] flex items-center gap-1">
+                    <span>{targetCat?.icon}</span> {targetCat?.label}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-1.5 text-xs text-[var(--color-muted)] bg-amber-50/70 border border-amber-200/60 rounded-xl p-3">
+                <p className="font-medium text-amber-900">What will change:</p>
+                <ul className="list-disc list-inside space-y-1 text-[11px] text-amber-800">
+                  <li>Your rates panel will switch to {targetCat?.label} pricing structures.</li>
+                  <li>Front-desk Walk-in & Reservation forms will adapt to {targetCat?.label} standards.</li>
+                  <li>Digital folio links and WhatsApp receipts will update accordingly.</li>
+                </ul>
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setPendingCategorySwitch(null)}
+                  className="rounded-lg px-4 py-2 text-xs text-[var(--color-muted)] hover:bg-gray-100 transition"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setForm((f) => ({ ...f, propertyType: pendingCategorySwitch }))
+                    setPendingCategorySwitch(null)
+                  }}
+                  className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-xs font-semibold text-white hover:opacity-90 transition shadow-xs"
+                >
+                  Confirm & Switch to {targetCat?.label}
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body,
+        )
+      })()}
     </div>
   )
 }
