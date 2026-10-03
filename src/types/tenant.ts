@@ -26,6 +26,8 @@ export interface Organization {
   location?: string
   latitude?: number
   longitude?: number
+  propertyType?: 'hotel' | 'guesthouse' | 'airbnb' | 'resort' | 'other'
+  unitsRange?: string
 }
 
 export interface PropertyItem {
@@ -55,6 +57,8 @@ export interface RegisterOrgInput {
   location?: string
   latitude?: number
   longitude?: number
+  propertyType?: 'hotel' | 'guesthouse' | 'airbnb' | 'resort' | 'other'
+  unitsRange?: string
 }
 
 export interface CreateOrganizationInput {

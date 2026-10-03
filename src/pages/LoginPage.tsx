@@ -134,8 +134,8 @@ export function LoginPage() {
             <div className="absolute inset-0 flex items-center">
               <div className="w-full border-t border-[var(--color-line)]" />
             </div>
-            <span className="relative bg-[var(--color-cream)] px-3 text-xs uppercase tracking-wider text-[var(--color-muted)]">
-              Partner with Guestplace
+            <span className="relative bg-[var(--color-cream)] px-3 text-[11px] uppercase tracking-wider text-[var(--color-muted)] font-medium">
+              Hotels · Guest Houses · Airbnbs
             </span>
           </div>
 
@@ -144,9 +144,9 @@ export function LoginPage() {
             onClick={() => setRegisterOpen(true)}
             className="w-full rounded-lg border border-[var(--color-line)] bg-white py-2.5 px-4 text-xs font-medium text-[var(--color-ink)] hover:bg-[var(--color-cream)] hover:border-[var(--color-accent)]/40 transition shadow-xs flex items-center justify-center gap-2"
           >
-            <span>Request an invitation / Join waitlist</span>
+            <span>Get your property on Guestplace</span>
             <span className="text-[10px] rounded-full bg-[var(--color-accent)]/10 text-[var(--color-accent)] font-semibold px-2 py-0.5">
-              Waitlist
+              Get Started
             </span>
           </button>
         </div>

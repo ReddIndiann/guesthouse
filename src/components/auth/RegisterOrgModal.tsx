@@ -7,12 +7,23 @@ interface RegisterOrgModalProps {
   onSuccess?: () => void
 }
 
+type PropertyType = 'hotel' | 'guesthouse' | 'airbnb' | 'resort'
+
+const PROPERTY_TYPES: { id: PropertyType; label: string; icon: string; desc: string }[] = [
+  { id: 'hotel', label: 'Hotel / Boutique', icon: '🏨', desc: 'Front desk, rooms & amenities' },
+  { id: 'guesthouse', label: 'Guest House / Lodge', icon: '🏡', desc: 'Walk-ins, shifts & room rates' },
+  { id: 'airbnb', label: 'Airbnb / Apartments', icon: '🔑', desc: 'Short-stays, units & key handoff' },
+  { id: 'resort', label: 'Resort / Retreat', icon: '🌴', desc: 'Villas, leisure & grounds' },
+]
+
 export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalProps) {
   const [orgName, setOrgName] = useState('')
   const [ownerName, setOwnerName] = useState('')
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [location, setLocation] = useState('')
+  const [propertyType, setPropertyType] = useState<PropertyType>('guesthouse')
+  const [unitsRange, setUnitsRange] = useState('6 - 15 rooms / units')
   const [estimatedProperties, setEstimatedProperties] = useState<number>(1)
   const [notes, setNotes] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -27,6 +38,8 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
     setEmail('')
     setPhone('')
     setLocation('')
+    setPropertyType('guesthouse')
+    setUnitsRange('6 - 15 rooms / units')
     setEstimatedProperties(1)
     setNotes('')
     setError(null)
@@ -50,6 +63,8 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
         email: email.trim(),
         phone: phone.trim() || undefined,
         location: location.trim() || undefined,
+        propertyType,
+        unitsRange,
         estimatedProperties,
         notes: notes.trim() || undefined,
       })
@@ -57,7 +72,7 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
       setSubmitted(true)
       onSuccess?.()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to submit invitation request. Please try again.')
+      setError(err instanceof Error ? err.message : 'Failed to submit property details. Please try again.')
     } finally {
       setSubmitting(false)
     }
@@ -65,7 +80,7 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs animate-in fade-in duration-150">
-      <div className="w-full max-w-lg rounded-2xl bg-white p-6 sm:p-7 shadow-2xl border border-[var(--color-line)] max-h-[92vh] overflow-y-auto">
+      <div className="w-full max-w-xl rounded-2xl bg-white p-6 sm:p-7 shadow-2xl border border-[var(--color-line)] max-h-[94vh] overflow-y-auto">
         {submitted ? (
           <div className="text-center py-6 space-y-4">
             <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-emerald-50 text-emerald-600 border border-emerald-200">
@@ -83,30 +98,33 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
 
             <div className="space-y-1.5">
               <h2 className="text-lg font-serif font-bold text-[var(--color-ink)]">
-                Invitation Request Submitted
+                Property Details Received!
               </h2>
-              <p className="text-xs text-[var(--color-muted)] max-w-sm mx-auto">
-                Thank you for applying to partner with Guestplace. We have added{' '}
-                <strong className="text-[var(--color-ink)]">{orgName}</strong> to our onboarding
-                queue.
+              <p className="text-xs text-[var(--color-muted)] max-w-md mx-auto">
+                Thank you for connecting with us! We have received the details for{' '}
+                <strong className="text-[var(--color-ink)]">{orgName}</strong>.
               </p>
             </div>
 
-            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4 text-left text-xs text-[var(--color-muted)] space-y-2">
-              <div className="flex items-start gap-2">
-                <span className="text-[var(--color-accent)] font-bold text-sm">✓</span>
+            <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4 text-left text-xs text-[var(--color-muted)] space-y-2.5">
+              <div className="flex items-start gap-2.5">
+                <span className="text-[var(--color-accent)] font-bold text-sm leading-none mt-0.5">✓</span>
                 <div>
-                  <span className="font-semibold text-[var(--color-ink)]">Review & Setup:</span> Our
-                  operations team will review your property profile and prepare your workspace.
+                  <span className="font-semibold text-[var(--color-ink)]">Custom Setup:</span> We are
+                  configuring your workspace tailored for your{' '}
+                  <span className="capitalize font-semibold text-[var(--color-ink)]">
+                    {PROPERTY_TYPES.find((p) => p.id === propertyType)?.label || propertyType}
+                  </span>{' '}
+                  ({unitsRange}).
                 </div>
               </div>
-              <div className="flex items-start gap-2">
-                <span className="text-[var(--color-accent)] font-bold text-sm">✓</span>
+              <div className="flex items-start gap-2.5">
+                <span className="text-[var(--color-accent)] font-bold text-sm leading-none mt-0.5">✓</span>
                 <div>
-                  <span className="font-semibold text-[var(--color-ink)]">Invitation Email:</span>{' '}
-                  You will receive an official invitation link at{' '}
-                  <strong className="text-[var(--color-ink)]">{email}</strong> to set up your team
-                  and start co-operating.
+                  <span className="font-semibold text-[var(--color-ink)]">Onboarding Access:</span>{' '}
+                  We will contact you at{' '}
+                  <strong className="text-[var(--color-ink)]">{email}</strong> with your setup link
+                  so you can begin managing reservations, guest folios, and daily operations.
                 </div>
               </div>
             </div>
@@ -124,13 +142,13 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
             <div className="flex items-start justify-between pb-4 border-b border-[var(--color-line)]">
               <div>
                 <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)]/10 px-2.5 py-0.5 text-[11px] font-medium text-[var(--color-accent)] mb-1">
-                  Waitlist & Partner Access
+                  Hotels · Guest Houses · Airbnbs
                 </div>
                 <h2 className="text-lg font-serif font-bold text-[var(--color-ink)]">
-                  Request an Invitation
+                  Get your property on Guestplace
                 </h2>
                 <p className="text-xs text-[var(--color-muted)] mt-0.5">
-                  We onboard properties by invitation. Submit your details to join our waitlist.
+                  Built for hotel managers, guest house owners, and short-stay Airbnb hosts.
                 </p>
               </div>
               <button
@@ -148,16 +166,50 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="mt-4 space-y-3.5">
+            <form onSubmit={handleSubmit} className="mt-4 space-y-4">
+              {/* Property Category Selection */}
+              <div>
+                <label className="block text-xs font-medium text-[var(--color-muted)] mb-1.5">
+                  Property Category *
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                  {PROPERTY_TYPES.map((type) => {
+                    const isSelected = propertyType === type.id
+                    return (
+                      <button
+                        key={type.id}
+                        type="button"
+                        onClick={() => setPropertyType(type.id)}
+                        className={`flex flex-col items-center justify-center p-2.5 rounded-xl border text-center transition ${
+                          isSelected
+                            ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-ink)] font-semibold shadow-xs'
+                            : 'border-[var(--color-line)] bg-[var(--color-cream)]/70 text-[var(--color-muted)] hover:border-[var(--color-muted)]/50'
+                        }`}
+                      >
+                        <span className="text-lg mb-1">{type.icon}</span>
+                        <span className="text-xs leading-tight">{type.label}</span>
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
+              {/* Names */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
-                    Organization / Hotel name *
+                    Property / Business name *
                   </label>
                   <input
                     type="text"
                     required
-                    placeholder="e.g. Palm Grove Resorts"
+                    placeholder={
+                      propertyType === 'airbnb'
+                        ? 'e.g. Cantonments Luxury Suites'
+                        : propertyType === 'hotel'
+                          ? 'e.g. Royal Crown Hotel'
+                          : 'e.g. Palm Grove Guest House'
+                    }
                     value={orgName}
                     onChange={(e) => setOrgName(e.target.value)}
                     className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition"
@@ -166,7 +218,7 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
 
                 <div>
                   <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
-                    Contact person *
+                    Contact person / Host *
                   </label>
                   <input
                     type="text"
@@ -179,6 +231,7 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
                 </div>
               </div>
 
+              {/* Contacts */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
@@ -187,13 +240,13 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
                   <input
                     type="email"
                     required
-                    placeholder="admin@palmgrove.com"
+                    placeholder="manager@myproperty.com"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition"
                   />
                   <p className="mt-1 text-[10px] text-[var(--color-muted)]">
-                    Invitation link will be dispatched here
+                    Setup instructions & access details will be sent here
                   </p>
                 </div>
 
@@ -211,14 +264,15 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {/* Location, Units & Branches */}
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
                     City / Location
                   </label>
                   <input
                     type="text"
-                    placeholder="e.g. Accra, Ghana"
+                    placeholder="e.g. Accra, East Legon"
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition"
@@ -227,31 +281,58 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
 
                 <div>
                   <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
-                    Planned branches
+                    Rooms / Units count
+                  </label>
+                  <select
+                    value={unitsRange}
+                    onChange={(e) => setUnitsRange(e.target.value)}
+                    className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition"
+                  >
+                    <option value="1 - 5 units (e.g. Airbnb / compact)">1 – 5 rooms / units</option>
+                    <option value="6 - 15 rooms / units">6 – 15 rooms / units</option>
+                    <option value="16 - 30 rooms / units">16 – 30 rooms / units</option>
+                    <option value="31 - 60 rooms / units">31 – 60 rooms / units</option>
+                    <option value="60+ rooms / units">60+ rooms / units</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
+                    Locations / Branches
                   </label>
                   <select
                     value={estimatedProperties}
                     onChange={(e) => setEstimatedProperties(Number(e.target.value))}
                     className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition"
                   >
-                    <option value={1}>Single location (1 branch)</option>
-                    <option value={2}>2 - 3 branches</option>
-                    <option value={5}>4 - 10 branches</option>
-                    <option value={15}>10+ branches</option>
+                    <option value={1}>Single location</option>
+                    <option value={2}>2 – 3 locations</option>
+                    <option value={5}>4 – 10 locations</option>
+                    <option value={15}>10+ locations</option>
                   </select>
                 </div>
               </div>
 
+              {/* Operational Needs */}
               <div>
-                <label className="block text-xs font-medium text-[var(--color-muted)] mb-1">
-                  Tell us about your properties & workflow needs
-                </label>
+                <div className="flex items-center justify-between mb-1">
+                  <label className="block text-xs font-medium text-[var(--color-muted)]">
+                    Tell us about your properties & workflow needs
+                  </label>
+                  <span className="text-[10px] text-[var(--color-muted)]">Front desk, payments, cleaning</span>
+                </div>
                 <textarea
-                  rows={2}
-                  placeholder="e.g. Number of rooms, current front-desk system, MoMo payment needs, etc."
+                  rows={4}
+                  placeholder={
+                    propertyType === 'airbnb'
+                      ? 'e.g. 3 furnished apartments in Cantonments, looking for calendar sync, check-in code delivery, MoMo payments, and housekeeping turnover tracking…'
+                      : propertyType === 'hotel'
+                        ? 'e.g. 25 hotel rooms (executive suites & standard), 24/7 front desk shifts, MoMo / card POS receipts, and guest dining folios…'
+                        : 'e.g. 14 guest rooms (AC & Non-AC hourly/daily rates), front-desk receipt printing, daily cash drawer reconciliation, and shift handovers…'
+                  }
                   value={notes}
                   onChange={(e) => setNotes(e.target.value)}
-                  className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition resize-none"
+                  className="w-full min-h-[105px] rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] p-3 text-sm text-[var(--color-ink)] focus:outline-none focus:border-[var(--color-accent)] focus:bg-white transition resize-y leading-relaxed"
                 />
               </div>
 
@@ -266,9 +347,9 @@ export function RegisterOrgModal({ open, onClose, onSuccess }: RegisterOrgModalP
                 <button
                   type="submit"
                   disabled={submitting || !orgName || !ownerName || !email}
-                  className="rounded-lg bg-[var(--color-accent)] px-5 py-2 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition shadow-xs"
+                  className="rounded-lg bg-[var(--color-accent)] px-5 py-2.5 text-sm font-medium text-white hover:opacity-90 disabled:opacity-50 transition shadow-xs"
                 >
-                  {submitting ? 'Submitting request…' : 'Join waitlist & request invitation'}
+                  {submitting ? 'Submitting details…' : 'Submit property details'}
                 </button>
               </div>
             </form>

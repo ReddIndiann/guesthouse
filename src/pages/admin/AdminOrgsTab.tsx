@@ -271,6 +271,18 @@ export function AdminOrgsTab({ organizations, adminUid, initialFilter = 'all' }:
                         <span className="rounded bg-[var(--color-cream)] border border-[var(--color-line)] px-2 py-0.5 text-[10px] text-[var(--color-muted)] uppercase tracking-wider">
                           {org.plan}
                         </span>
+
+                        {org.propertyType && (
+                          <span className="rounded-full bg-blue-50 border border-blue-200 px-2 py-0.5 text-[10px] font-medium text-blue-800 capitalize">
+                            {org.propertyType === 'airbnb' ? '🔑 Airbnb / Apt' : org.propertyType === 'hotel' ? '🏨 Hotel' : org.propertyType === 'resort' ? '🌴 Resort' : '🏡 Guest House'}
+                          </span>
+                        )}
+
+                        {org.unitsRange && (
+                          <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-700">
+                            {org.unitsRange}
+                          </span>
+                        )}
                       </div>
 
                       {/* Location & GPS */}

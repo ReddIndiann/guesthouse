@@ -62,6 +62,8 @@ export async function registerOrganization(input: RegisterOrgInput): Promise<{ o
     imageUrl: input.imageUrl || '',
     latitude: input.latitude,
     longitude: input.longitude,
+    propertyType: input.propertyType || 'guesthouse',
+    unitsRange: input.unitsRange || '',
   }
 
   await setDoc(orgRef, newOrg)
