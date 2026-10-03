@@ -10,6 +10,9 @@ export function buildWhatsAppReceiptMessage({
   paymentMethod,
   paymentReference,
   wifiPassword,
+  doorCode,
+  checkInInstructions,
+  propertyType,
 }: {
   propertyName: string
   propertyPhone?: string
@@ -22,12 +25,18 @@ export function buildWhatsAppReceiptMessage({
   paymentMethod?: string
   paymentReference?: string
   wifiPassword?: string
+  doorCode?: string
+  checkInInstructions?: string
+  propertyType?: string
 }): string {
+  const isAirbnb = propertyType === 'airbnb' || !!doorCode
+  const unitLabel = isAirbnb ? 'Unit / Apt' : 'Room'
+
   const lines = [
     `*RECEIPT — ${propertyName.toUpperCase()}*`,
     `────────────────────────`,
     `Guest: ${guestName}`,
-    `Room: ${roomNumber}`,
+    `${unitLabel}: ${roomNumber}`,
     `Stay: ${schedule}`,
     `────────────────────────`,
     `Total: ₵${totalAmount.toFixed(2)}`,
@@ -47,13 +56,21 @@ export function buildWhatsAppReceiptMessage({
     lines.push(`Txn Ref: ${paymentReference}`)
   }
 
-  if (wifiPassword) {
+  if (doorCode) {
     lines.push(`────────────────────────`)
-    lines.push(`Wi-Fi Password: ${wifiPassword}`)
+    lines.push(`🔑 *Self Check-in Door PIN:* ${doorCode}`)
+    if (checkInInstructions) {
+      lines.push(`📍 *Instructions:* ${checkInInstructions}`)
+    }
+  }
+
+  if (wifiPassword) {
+    if (!doorCode) lines.push(`────────────────────────`)
+    lines.push(`📶 *Wi-Fi Password:* ${wifiPassword}`)
   }
 
   if (propertyPhone) {
-    lines.push(`Front Desk: ${propertyPhone}`)
+    lines.push(`Contact: ${propertyPhone}`)
   }
 
   lines.push(`────────────────────────`)

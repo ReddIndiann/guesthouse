@@ -35,6 +35,7 @@ export function buildTodayCashReport(
     full_day: { count: 0, billed: 0, collected: 0 },
     per_hour: { count: 0, billed: 0, collected: 0 },
     two_hours: { count: 0, billed: 0, collected: 0 },
+    nightly: { count: 0, billed: 0, collected: 0 },
   }
 
   let totalBilled = 0

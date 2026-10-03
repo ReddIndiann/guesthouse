@@ -6,7 +6,9 @@ export type BookingStatus = 'confirmed' | 'checked_in' | 'checked_out' | 'cancel
 
 export type PaymentStatus = 'unpaid' | 'partial' | 'paid'
 
-export type BookingRateType = 'full_day' | 'per_hour' | 'two_hours'
+export type BookingRateType = 'full_day' | 'per_hour' | 'two_hours' | 'nightly'
+
+export type PropertyCategory = 'guesthouse' | 'hotel' | 'airbnb' | 'resort'
 
 export interface RoomRateBand {
   fullDay: number
@@ -19,6 +21,32 @@ export interface PropertyRates {
   ac: RoomRateBand
   acKing: RoomRateBand
   nonAc: RoomRateBand
+}
+
+export interface AirbnbRates {
+  nightlyRate: number
+  weekendRate?: number
+  cleaningFee: number
+  securityDeposit?: number
+}
+
+export interface HotelRates {
+  standardNightly: number
+  deluxeNightly: number
+  suiteNightly: number
+}
+
+export const DEFAULT_AIRBNB_RATES: AirbnbRates = {
+  nightlyRate: 650,
+  weekendRate: 750,
+  cleaningFee: 100,
+  securityDeposit: 200,
+}
+
+export const DEFAULT_HOTEL_RATES: HotelRates = {
+  standardNightly: 450,
+  deluxeNightly: 650,
+  suiteNightly: 950,
 }
 
 export const DEFAULT_PROPERTY_RATES: PropertyRates = {
@@ -34,6 +62,11 @@ export interface PropertySettings {
   checkInTime: string
   checkOutTime: string
   rates: PropertyRates
+  propertyType?: PropertyCategory
+  airbnbRates?: AirbnbRates
+  hotelRates?: HotelRates
+  defaultDoorCode?: string
+  checkInInstructions?: string
   wifiPassword?: string
   lastNightAuditDate?: string
   suggestionToken?: string
@@ -76,12 +109,17 @@ export interface NewGuestSuggestionInput {
 }
 
 export const DEFAULT_PROPERTY_SETTINGS: PropertySettings = {
-  name: 'My Guest House',
+  name: 'My Property',
   address: '',
   phone: '',
   checkInTime: '14:00',
   checkOutTime: '11:00',
   rates: DEFAULT_PROPERTY_RATES,
+  propertyType: 'guesthouse',
+  airbnbRates: DEFAULT_AIRBNB_RATES,
+  hotelRates: DEFAULT_HOTEL_RATES,
+  defaultDoorCode: '',
+  checkInInstructions: '',
 }
 
 export interface Room {
@@ -96,6 +134,9 @@ export interface Room {
   capacity: number
   amenities: string[]
   cleaningStartedAt?: string
+  unitCategory?: string
+  doorCode?: string
+  nightlyPrice?: number
 }
 
 export interface Guest {
@@ -128,6 +169,9 @@ export interface Booking {
   checkOutTime?: string
   rateType: BookingRateType
   hours?: number
+  nights?: number
+  cleaningFee?: number
+  doorCode?: string
   status: BookingStatus
   baseAmount?: number
   totalAmount: number
@@ -164,6 +208,10 @@ export interface PublicFolio {
   checkedOut?: boolean
   suggestionToken?: string
   feedbackSubmitted?: boolean
+  nights?: number
+  doorCode?: string
+  cleaningFee?: number
+  propertyType?: PropertyCategory
 }
 
 export interface NewBookingInput {
@@ -175,6 +223,9 @@ export interface NewBookingInput {
   checkOutTime?: string
   rateType: BookingRateType
   hours?: number
+  nights?: number
+  cleaningFee?: number
+  doorCode?: string
   amountPaid?: number
   paymentMethod?: PaymentMethod
   momoProvider?: MoMoProvider
@@ -190,6 +241,9 @@ export interface RoomInput {
   hasAirConditioning: boolean
   capacity: number
   amenities: string[]
+  unitCategory?: string
+  doorCode?: string
+  nightlyPrice?: number
 }
 
 export const ROOM_TYPES: RoomType[] = ['single', 'double', 'twin', 'suite', 'dorm']

@@ -44,6 +44,9 @@ export function BookingReceiptDialog({ booking, open, onClose }: BookingReceiptD
       paymentMethod: booking.paymentMethod,
       paymentReference: booking.paymentReference,
       wifiPassword: settings.wifiPassword,
+      doorCode: booking.doorCode || room?.doorCode || settings.defaultDoorCode,
+      checkInInstructions: settings.checkInInstructions,
+      propertyType: settings.propertyType,
     })
     openWhatsAppReceipt(guest?.phone, msg)
   }

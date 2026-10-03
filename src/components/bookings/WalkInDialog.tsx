@@ -29,29 +29,26 @@ interface WalkInDialogProps {
 
 type Step = 'room' | 'rate' | 'guest'
 
-const RATE_OPTIONS: BookingRateType[] = ['two_hours', 'per_hour', 'full_day']
-
 export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogProps) {
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const { rooms, settings, bookings, createBooking } = useGuestplace()
 
+  const isAirbnb = settings.propertyType === 'airbnb'
+  const isHotel = settings.propertyType === 'hotel'
+  const isNightlyModel = isAirbnb || isHotel
+
   const availableRooms = rooms.filter((r) => r.status === 'available')
   
   const nowISO = new Date().toISOString()
-  // Ensure we don't allow walk-in if a room is reserved soon.
-  // Wait, we need the exact checkIn and checkOut for the selected slot, but since they select the room first,
-  // we filter by a rough 'is it available for at least 1 hour?'. 
-  // For precise conflict checking, it's safer to allow selecting the room and show conflict at the slot level,
-  // or filter out rooms that are reserved today altogether to simplify walk-ins.
-  // Walk-ins are usually immediate. So checking if there's any reservation today for that room is a simple fix.
   const walkInRooms = availableRooms.filter((r) => !hasRoomConflict(bookings, r.id, nowISO, nowISO, settings.checkInTime, settings.checkOutTime))
 
   const [step, setStep] = useState<Step>(preselectedRoomId ? 'rate' : 'room')
   const [roomId, setRoomId] = useState(preselectedRoomId ?? '')
-  const [rateType, setRateType] = useState<BookingRateType>('two_hours')
+  const [rateType, setRateType] = useState<BookingRateType>(isNightlyModel ? 'nightly' : 'two_hours')
   const [hours, setHours] = useState(1)
   const [nights, setNights] = useState(1)
+  const [doorCode, setDoorCode] = useState('')
   const [name, setName] = useState('')
   const [phone, setPhone] = useState('')
   const [idNumber, setIdNumber] = useState('')
@@ -75,9 +72,16 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
 
   const selectedRoom = rooms.find((r) => r.id === roomId)
   const hasAC = selectedRoom ? roomHasAirConditioning(selectedRoom) : false
+
+  useEffect(() => {
+    if (selectedRoom) {
+      setDoorCode(selectedRoom.doorCode || settings.defaultDoorCode || '')
+    }
+  }, [selectedRoom, settings.defaultDoorCode])
+
   const slot = useMemo(() => {
     if (!selectedRoom) return null
-    if (rateType === 'full_day') {
+    if (rateType === 'full_day' || rateType === 'nightly') {
       const base = defaultWalkInSlot('full_day', settings)
       const d = new Date(base.checkOut)
       d.setDate(d.getDate() + nights - 1)
@@ -92,14 +96,19 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
       hours: rateType === 'per_hour' ? hours : undefined,
       checkIn: slot.checkIn,
       checkOut: slot.checkOut,
+      nights,
+      cleaningFee: isAirbnb ? settings.airbnbRates?.cleaningFee : undefined,
+      propertySettings: settings,
     })
-  }, [selectedRoom, slot, settings.rates, rateType, hours])
+  }, [selectedRoom, slot, settings, rateType, hours, nights, isAirbnb])
 
   const reset = () => {
     setStep(preselectedRoomId ? 'rate' : 'room')
     setRoomId(preselectedRoomId ?? '')
-    setRateType('two_hours')
+    setRateType(isNightlyModel ? 'nightly' : 'two_hours')
     setHours(1)
+    setNights(1)
+    setDoorCode('')
     setName('')
     setPhone('')
     setIdNumber('')
@@ -134,6 +143,9 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
         checkOutTime: slot.checkOutTime,
         rateType,
         hours: rateType === 'per_hour' ? hours : undefined,
+        nights: (rateType === 'nightly' || rateType === 'full_day') ? nights : undefined,
+        cleaningFee: isAirbnb ? (settings.airbnbRates?.cleaningFee ?? 0) : undefined,
+        doorCode: doorCode.trim() || undefined,
         amountPaid: paid,
         paymentMethod,
         momoProvider: paymentMethod === 'momo' ? momoProvider : undefined,
@@ -169,7 +181,9 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
         <DialogContent className="flex flex-col gap-4 pt-4">
           {step === 'room' && (
             <>
-              <p className="text-sm text-[var(--color-muted)]">Tap an available room</p>
+              <p className="text-sm text-[var(--color-muted)]">
+                {isAirbnb ? 'Tap an available unit / apartment' : 'Tap an available room'}
+              </p>
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {walkInRooms.map((room) => (
                   <button
@@ -181,12 +195,15 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
                     }}
                     className="rounded-xl border-2 border-[var(--color-line)] bg-white py-4 text-xl font-semibold transition-colors hover:border-[var(--color-accent)] active:scale-[0.98]"
                   >
+                    {isAirbnb && <span className="block text-[10px] text-[var(--color-muted)] font-normal uppercase">Unit</span>}
                     {room.number}
                   </button>
                 ))}
               </div>
               {walkInRooms.length === 0 && (
-                <p className="text-sm text-rose-700">No rooms available right now.</p>
+                <p className="text-sm text-rose-700">
+                  {isAirbnb ? 'No units available right now.' : 'No rooms available right now.'}
+                </p>
               )}
             </>
           )}
@@ -194,64 +211,103 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
           {step === 'rate' && selectedRoom && (
             <>
               <p className="text-sm text-[var(--color-muted)]">
-                Room {selectedRoom.number} · {hasAC ? 'AC' : 'Non-AC'}
+                {isAirbnb ? `Unit ${selectedRoom.number}` : `Room ${selectedRoom.number}`} · {hasAC ? 'AC' : 'Non-AC'}
               </p>
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
-                {RATE_OPTIONS.map((type) => (
-                  <button
-                    key={type}
-                    type="button"
-                    onClick={() => setRateType(type)}
-                    className={`rounded-xl border-2 px-3 py-3 text-sm font-medium transition-colors ${
-                      rateType === type
-                        ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
-                        : 'border-[var(--color-line)] bg-white'
-                    }`}
-                  >
-                    {RATE_TYPE_LABELS[type]}
-                  </button>
-                ))}
-              </div>
-              {rateType === 'per_hour' && (
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setHours((h) => Math.max(1, h - 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-[4rem] text-center text-lg font-semibold">{hours}h</span>
-                  <button
-                    type="button"
-                    onClick={() => setHours((h) => Math.min(3, h + 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
-                  >
-                    +
-                  </button>
+
+              {isNightlyModel ? (
+                <div className="rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4 text-center space-y-3">
+                  <div className="inline-flex items-center gap-1.5 rounded-full bg-[var(--color-accent)]/10 px-3 py-1 text-xs font-semibold text-[var(--color-accent)]">
+                    {isAirbnb ? '🔑 Airbnb Nightly Stay' : '🏨 Hotel Nightly Stay'}
+                  </div>
+                  <div className="flex items-center justify-center gap-4">
+                    <button
+                      type="button"
+                      onClick={() => setNights((n) => Math.max(1, n - 1))}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white text-lg font-bold hover:bg-gray-50 active:scale-95 transition"
+                    >
+                      −
+                    </button>
+                    <span className="min-w-[6rem] text-center text-lg font-bold text-[var(--color-ink)]">
+                      {nights} {nights === 1 ? 'night' : 'nights'}
+                    </span>
+                    <button
+                      type="button"
+                      onClick={() => setNights((n) => n + 1)}
+                      className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] bg-white text-lg font-bold hover:bg-gray-50 active:scale-95 transition"
+                    >
+                      +
+                    </button>
+                  </div>
+                  {isAirbnb && settings.airbnbRates?.cleaningFee ? (
+                    <div className="text-xs text-[var(--color-muted)] flex justify-between px-3 border-t border-[var(--color-line)] pt-2">
+                      <span>Turnover cleaning fee:</span>
+                      <span className="font-semibold text-[var(--color-ink)]">
+                        {formatMoney(settings.airbnbRates.cleaningFee)}
+                      </span>
+                    </div>
+                  ) : null}
                 </div>
+              ) : (
+                <>
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
+                    {(['two_hours', 'per_hour', 'full_day'] as BookingRateType[]).map((type) => (
+                      <button
+                        key={type}
+                        type="button"
+                        onClick={() => setRateType(type)}
+                        className={`rounded-xl border-2 px-3 py-3 text-sm font-medium transition-colors ${
+                          rateType === type
+                            ? 'border-[var(--color-accent)] bg-[var(--color-accent-soft)] text-[var(--color-accent)]'
+                            : 'border-[var(--color-line)] bg-white'
+                        }`}
+                      >
+                        {RATE_TYPE_LABELS[type]}
+                      </button>
+                    ))}
+                  </div>
+                  {rateType === 'per_hour' && (
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setHours((h) => Math.max(1, h - 1))}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[4rem] text-center text-lg font-semibold">{hours}h</span>
+                      <button
+                        type="button"
+                        onClick={() => setHours((h) => Math.min(3, h + 1))}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                  {rateType === 'full_day' && (
+                    <div className="flex items-center justify-center gap-3">
+                      <button
+                        type="button"
+                        onClick={() => setNights((n) => Math.max(1, n - 1))}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
+                      >
+                        −
+                      </button>
+                      <span className="min-w-[6rem] text-center text-lg font-semibold">
+                        {nights} {nights === 1 ? 'day' : 'days'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setNights((n) => n + 1)}
+                        className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
+                      >
+                        +
+                      </button>
+                    </div>
+                  )}
+                </>
               )}
-              {rateType === 'full_day' && (
-                <div className="flex items-center justify-center gap-3">
-                  <button
-                    type="button"
-                    onClick={() => setNights((n) => Math.max(1, n - 1))}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
-                  >
-                    −
-                  </button>
-                  <span className="min-w-[6rem] text-center text-lg font-semibold">
-                    {nights} {nights === 1 ? 'day' : 'days'}
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => setNights((n) => n + 1)}
-                    className="flex h-10 w-10 items-center justify-center rounded-lg border border-[var(--color-line)] text-lg"
-                  >
-                    +
-                  </button>
-                </div>
-              )}
+
               {slot && (
                 <p className="text-center text-2xl font-semibold text-[var(--color-ink)]">
                   {formatMoney(total)}
@@ -273,7 +329,8 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
           {step === 'guest' && selectedRoom && slot && (
             <>
               <p className="text-sm text-[var(--color-muted)]">
-                Room {selectedRoom.number} · {formatBookingRateLabel(rateType, hours)} ·{' '}
+                {isAirbnb ? `Unit ${selectedRoom.number}` : `Room ${selectedRoom.number}`} ·{' '}
+                {isNightlyModel ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : formatBookingRateLabel(rateType, hours)} ·{' '}
                 {formatMoney(total)}
               </p>
               <input
@@ -292,9 +349,24 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
               <input
                 value={idNumber}
                 onChange={(e) => setIdNumber(e.target.value)}
-                placeholder="Ghana Card / ID Number (Optional)"
+                placeholder="Ghana Card / Passport / ID (Optional)"
                 className="w-full rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 text-sm"
               />
+
+              {isAirbnb && (
+                <div className="rounded-xl border border-amber-200 bg-amber-50/70 p-3 space-y-1">
+                  <label className="text-[11px] font-semibold text-amber-900 block">
+                    🔑 Self Check-in Door / Keybox PIN
+                  </label>
+                  <input
+                    value={doorCode}
+                    onChange={(e) => setDoorCode(e.target.value)}
+                    placeholder="e.g. 4829# or Lockbox 1234"
+                    className="w-full rounded-lg border border-amber-300 bg-white px-3 py-2 text-sm font-mono text-amber-950 placeholder:text-amber-400 focus:outline-none focus:border-amber-500"
+                  />
+                  <p className="text-[10px] text-amber-700">Included on WhatsApp receipt for keyless check-in</p>
+                </div>
+              )}
 
               <div className="space-y-2">
                 <span className="text-xs font-semibold uppercase tracking-wider text-[var(--color-muted)]">

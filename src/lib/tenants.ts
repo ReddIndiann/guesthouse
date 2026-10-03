@@ -122,6 +122,7 @@ export async function approveOrganization(orgId: string, approvedByUid: string):
       name: initialPropName,
       address: org.location || '',
       phone: org.contactPhone || '',
+      propertyType: org.propertyType || 'guesthouse',
     },
   })
 

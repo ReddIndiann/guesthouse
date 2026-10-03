@@ -28,7 +28,7 @@ function hasDemoRooms(rooms: Room[]) {
 
 export function RoomsPage() {
   const { can } = useRbac()
-  const { rooms, bookings, getGuest, addRoom, clearPropertyData } = useGuestplace()
+  const { rooms, settings, bookings, getGuest, addRoom, clearPropertyData } = useGuestplace()
   const [statusFilter, setStatusFilter] = useState<RoomStatus | 'all'>('all')
   const [selectedRoom, setSelectedRoom] = useState<Room | null>(null)
   const [addOpen, setAddOpen] = useState(false)
@@ -76,11 +76,17 @@ export function RoomsPage() {
 
   const showDemoBanner = hasDemoRooms(rooms) && can('rooms.delete')
 
+  const isAirbnb = settings.propertyType === 'airbnb'
+  const isHotel = settings.propertyType === 'hotel'
+  const pageTitle = isAirbnb ? 'Units & Apartments' : isHotel ? 'Rooms & Suites' : 'Rooms'
+  const pageSubtitle = isAirbnb ? 'Tap an apartment for turnover status, door PIN & details' : 'Tap a room for details'
+  const addBtnLabel = isAirbnb ? '+ Add unit' : '+ Add room'
+
   return (
     <div>
       <PageHeader
-        title="Rooms"
-        subtitle="Tap a room for details"
+        title={pageTitle}
+        subtitle={pageSubtitle}
         action={
           can('rooms.create') ? (
             <button
@@ -88,7 +94,7 @@ export function RoomsPage() {
               onClick={() => setAddOpen(true)}
               className="rounded-lg bg-[var(--color-accent)] px-4 py-2 text-sm font-medium text-white"
             >
-              + Add room
+              {addBtnLabel}
             </button>
           ) : undefined
         }
@@ -207,6 +213,7 @@ export function RoomsPage() {
         onClose={() => setAddOpen(false)}
         onSubmit={handleAddRoom}
         existingNumbers={roomNumbers}
+        propertyType={settings.propertyType}
       />
 
       <WalkInDialog

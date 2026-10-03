@@ -13,7 +13,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material'
-import type { Room, RoomInput, RoomType } from '../../types'
+import type { PropertyCategory, Room, RoomInput, RoomType } from '../../types'
 import { ROOM_TYPES } from '../../types'
 
 interface RoomFormDialogProps {
@@ -22,6 +22,7 @@ interface RoomFormDialogProps {
   onSubmit: (input: RoomInput) => Promise<void>
   initial?: Room | null
   existingNumbers?: string[]
+  propertyType?: PropertyCategory
 }
 
 const emptyForm: RoomInput = {
@@ -31,6 +32,8 @@ const emptyForm: RoomInput = {
   hasAirConditioning: true,
   capacity: 2,
   amenities: [],
+  doorCode: '',
+  nightlyPrice: undefined,
 }
 
 export function RoomFormDialog({
@@ -39,7 +42,9 @@ export function RoomFormDialog({
   onSubmit,
   initial,
   existingNumbers = [],
+  propertyType = 'guesthouse',
 }: RoomFormDialogProps) {
+  const isAirbnb = propertyType === 'airbnb'
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const isEdit = !!initial
@@ -59,6 +64,8 @@ export function RoomFormDialog({
         hasAirConditioning: initial.hasAirConditioning,
         capacity: initial.capacity,
         amenities: initial.amenities,
+        doorCode: initial.doorCode ?? '',
+        nightlyPrice: initial.nightlyPrice,
       })
       setAmenitiesText(initial.amenities.join(', '))
     } else {
@@ -107,17 +114,53 @@ export function RoomFormDialog({
   return (
     <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="xs" fullWidth>
       <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>
-        {isEdit ? `Edit room ${initial?.number}` : 'Add room'}
+        {isEdit
+          ? isAirbnb
+            ? `Edit Unit ${initial?.number}`
+            : `Edit room ${initial?.number}`
+          : isAirbnb
+            ? 'Add Unit / Apartment'
+            : 'Add room'}
       </DialogTitle>
       <DialogContent className="flex flex-col gap-4 pt-4">
         <TextField
-          label="Room number"
+          label={isAirbnb ? 'Unit name / number' : 'Room number'}
           value={form.number}
           onChange={(e) => setForm((f) => ({ ...f, number: e.target.value }))}
-          placeholder="e.g. 101"
+          placeholder={isAirbnb ? 'e.g. Penthouse 4B or Studio 2' : 'e.g. 101'}
           required
           fullWidth
         />
+
+        {isAirbnb && (
+          <TextField
+            label="🔑 Unit Door PIN / Keybox Code"
+            value={form.doorCode ?? ''}
+            onChange={(e) => setForm((f) => ({ ...f, doorCode: e.target.value }))}
+            placeholder="e.g. 4829# or Lockbox 1234"
+            fullWidth
+            size="small"
+            helperText="Included on guest folio & receipt for keyless check-in"
+          />
+        )}
+
+        {isAirbnb && (
+          <TextField
+            label="Custom Nightly Rate (₵) — Optional"
+            type="number"
+            value={form.nightlyPrice ?? ''}
+            onChange={(e) =>
+              setForm((f) => ({
+                ...f,
+                nightlyPrice: e.target.value ? Number(e.target.value) : undefined,
+              }))
+            }
+            placeholder="Leave empty to use branch default"
+            fullWidth
+            size="small"
+          />
+        )}
+
         <div className="grid grid-cols-2 gap-3">
           <TextField
             label="Floor"

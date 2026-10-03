@@ -15,7 +15,7 @@ import {
 } from '@mui/material'
 import { useGuestplace } from '../../context/GuestplaceContext'
 import type { BookingRateType } from '../../types'
-import { addDaysISO, todayISO } from '../../utils/dates'
+import { addDaysISO, nightsBetween, todayISO } from '../../utils/dates'
 import { computeBookingSlot, nowTimeString } from '../../utils/datetime'
 import { formatMoney } from '../../utils/currency'
 import {
@@ -31,12 +31,15 @@ interface NewBookingDialogProps {
   preselectedRoomId?: string
 }
 
-const RATE_TYPES: BookingRateType[] = ['full_day', 'two_hours', 'per_hour']
-
 export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookingDialogProps) {
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const { rooms, settings, createBooking } = useGuestplace()
+
+  const isAirbnb = settings.propertyType === 'airbnb'
+  const isHotel = settings.propertyType === 'hotel'
+  const isNightlyModel = isAirbnb || isHotel
+
   const availableRooms = rooms.filter((r) => r.status !== 'maintenance')
 
   const [roomId, setRoomId] = useState(preselectedRoomId ?? '')
@@ -44,11 +47,12 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
   const [email, setEmail] = useState('')
   const [phone, setPhone] = useState('')
   const [idNumber, setIdNumber] = useState('')
-  const [rateType, setRateType] = useState<BookingRateType>('full_day')
+  const [rateType, setRateType] = useState<BookingRateType>(isNightlyModel ? 'nightly' : 'full_day')
   const [hours, setHours] = useState(1)
   const [checkIn, setCheckIn] = useState(todayISO())
   const [checkOut, setCheckOut] = useState('')
   const [checkInTime, setCheckInTime] = useState(nowTimeString())
+  const [doorCode, setDoorCode] = useState('')
   const [paymentMethod, setPaymentMethod] = useState<'cash' | 'momo' | 'card' | 'bank_transfer'>('cash')
   const [momoProvider, setMomoProvider] = useState<'mtn' | 'telecel' | 'at'>('mtn')
   const [paymentReference, setPaymentReference] = useState('')
@@ -61,8 +65,17 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
   const isShortStay = rateType === 'two_hours' || rateType === 'per_hour'
 
   useEffect(() => {
-    if (open) setRoomId(preselectedRoomId ?? '')
-  }, [open, preselectedRoomId])
+    if (open) {
+      setRoomId(preselectedRoomId ?? '')
+      setRateType(isNightlyModel ? 'nightly' : 'full_day')
+    }
+  }, [open, preselectedRoomId, isNightlyModel])
+
+  useEffect(() => {
+    if (selectedRoom) {
+      setDoorCode(selectedRoom.doorCode || settings.defaultDoorCode || '')
+    }
+  }, [selectedRoom, settings.defaultDoorCode])
 
   useEffect(() => {
     if (isShortStay) {
@@ -72,6 +85,11 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
     }
   }, [rateType, checkIn, isShortStay, checkOut])
 
+  const nights = useMemo(() => {
+    const effectiveCheckOut = isShortStay ? addDaysISO(checkIn, 1) : checkOut || addDaysISO(checkIn, 1)
+    return Math.max(1, nightsBetween(checkIn, effectiveCheckOut))
+  }, [checkIn, checkOut, isShortStay])
+
   const estimatedTotal = useMemo(() => {
     if (!selectedRoom) return null
     const effectiveCheckOut = isShortStay ? addDaysISO(checkIn, 1) : checkOut || addDaysISO(checkIn, 1)
@@ -79,8 +97,11 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
       hours: rateType === 'per_hour' ? hours : undefined,
       checkIn,
       checkOut: effectiveCheckOut,
+      nights,
+      cleaningFee: isAirbnb ? settings.airbnbRates?.cleaningFee : undefined,
+      propertySettings: settings,
     })
-  }, [selectedRoom, settings.rates, rateType, hours, checkIn, checkOut, isShortStay])
+  }, [selectedRoom, settings, rateType, hours, checkIn, checkOut, nights, isShortStay, isAirbnb])
 
   const reset = () => {
     setRoomId(preselectedRoomId ?? '')
@@ -92,8 +113,9 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
     setMomoProvider('mtn')
     setPaymentReference('')
     setAmountPaid('')
-    setRateType('full_day')
+    setRateType(isNightlyModel ? 'nightly' : 'full_day')
     setHours(1)
+    setDoorCode('')
     setCheckIn(todayISO())
     setCheckOut('')
     setNotes('')
@@ -139,6 +161,9 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
         checkOutTime: slot?.checkOutTime ?? settings.checkOutTime,
         rateType,
         hours: rateType === 'per_hour' ? hours : undefined,
+        nights: (rateType === 'nightly' || rateType === 'full_day') ? nights : undefined,
+        cleaningFee: isAirbnb ? (settings.airbnbRates?.cleaningFee ?? 0) : undefined,
+        doorCode: doorCode.trim() || undefined,
         amountPaid: paidNum,
         paymentMethod: paidNum > 0 ? paymentMethod : undefined,
         momoProvider: paidNum > 0 && paymentMethod === 'momo' ? momoProvider : undefined,
@@ -162,18 +187,20 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen={fullScreen} maxWidth="xs" fullWidth>
-      <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>New booking</DialogTitle>
+      <DialogTitle sx={{ fontWeight: 600, pb: 0 }}>
+        {isAirbnb ? 'New Apartment / Unit Booking' : isHotel ? 'New Hotel Room Reservation' : 'New booking'}
+      </DialogTitle>
       <DialogContent className="flex flex-col gap-4 pt-4">
         <TextField label="Guest name" value={name} onChange={(e) => setName(e.target.value)} required fullWidth />
-        <TextField label="Phone" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth />
+        <TextField label="Phone (WhatsApp enabled)" value={phone} onChange={(e) => setPhone(e.target.value)} fullWidth />
         <TextField label="Email" type="email" value={email} onChange={(e) => setEmail(e.target.value)} fullWidth />
 
         <FormControl fullWidth required size="small">
-          <InputLabel>Room</InputLabel>
-          <Select label="Room" value={roomId} onChange={(e) => setRoomId(e.target.value)}>
+          <InputLabel>{isAirbnb ? 'Unit / Apartment' : 'Room'}</InputLabel>
+          <Select label={isAirbnb ? 'Unit / Apartment' : 'Room'} value={roomId} onChange={(e) => setRoomId(e.target.value)}>
             {availableRooms.map((room) => (
               <MenuItem key={room.id} value={room.id}>
-                {room.number} — {roomHasAirConditioning(room) ? 'AC' : 'Non-AC'} ({room.type})
+                {isAirbnb ? `Unit ${room.number}` : room.number} — {roomHasAirConditioning(room) ? 'AC' : 'Non-AC'} ({room.type})
               </MenuItem>
             ))}
           </Select>
@@ -181,7 +208,13 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
 
         {selectedRoom && (
           <p className="rounded-lg bg-[var(--color-cream)] px-3 py-2 text-xs text-[var(--color-muted)]">
-            {formatRateSummary(settings.rates, selectedRoom)}
+            {isAirbnb && settings.airbnbRates?.nightlyRate ? (
+              <span>Nightly: {formatMoney(settings.airbnbRates.nightlyRate)} · Cleaning: {formatMoney(settings.airbnbRates.cleaningFee || 0)}</span>
+            ) : isHotel && settings.hotelRates?.standardNightly ? (
+              <span>Standard: {formatMoney(settings.hotelRates.standardNightly)} · Suite: {formatMoney(settings.hotelRates.suiteNightly)}</span>
+            ) : (
+              formatRateSummary(settings.rates, selectedRoom)
+            )}
           </p>
         )}
 
@@ -192,7 +225,7 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
             value={rateType}
             onChange={(e) => setRateType(e.target.value as BookingRateType)}
           >
-            {RATE_TYPES.map((type) => (
+            {(isNightlyModel ? (['nightly', 'full_day'] as BookingRateType[]) : (['full_day', 'two_hours', 'per_hour'] as BookingRateType[])).map((type) => (
               <MenuItem key={type} value={type}>
                 {RATE_TYPE_LABELS[type]}
               </MenuItem>
@@ -244,6 +277,18 @@ export function NewBookingDialog({ open, onClose, preselectedRoomId }: NewBookin
             slotProps={{ inputLabel: { shrink: true } }}
             required
             fullWidth
+          />
+        )}
+
+        {isAirbnb && (
+          <TextField
+            label="🔑 Self Check-in Door / Keybox PIN"
+            value={doorCode}
+            onChange={(e) => setDoorCode(e.target.value)}
+            placeholder="e.g. 4829# or Lockbox 1234"
+            fullWidth
+            size="small"
+            helperText="Included on guest folio & receipt for keyless check-in"
           />
         )}
 

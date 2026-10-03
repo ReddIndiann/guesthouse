@@ -3,13 +3,21 @@ import { PageHeader } from '../components/ui/PageHeader'
 import { Panel } from '../components/ui/Panel'
 import { useRbac } from '../context/RbacContext'
 import { useGuestplace } from '../context/GuestplaceContext'
-import type { PropertyRates, PropertySettings, RoomRateBand } from '../types'
+import type { PropertyCategory, PropertyRates, PropertySettings, RoomRateBand } from '../types'
+import { DEFAULT_AIRBNB_RATES, DEFAULT_HOTEL_RATES } from '../types'
 import { SuggestionQRPanel } from '../components/settings/SuggestionQRPanel'
 import { ThemeSelector } from '../components/settings/ThemeSelector'
 import { useAuth } from '../context/AuthContext'
 import { useTenant } from '../context/TenantContext'
 import { formatMoney } from '../utils/currency'
 import { applyThemeToDocument } from '../utils/theme'
+
+const CATEGORY_OPTIONS: { id: PropertyCategory; label: string; icon: string; desc: string }[] = [
+  { id: 'guesthouse', label: 'Guest House / Lodge', icon: '🏡', desc: 'Hourly walk-ins & daily rates' },
+  { id: 'hotel', label: 'Boutique Hotel', icon: '🏨', desc: 'Room tiers & nightly folios' },
+  { id: 'airbnb', label: 'Airbnb / Apartments', icon: '🔑', desc: 'Nightly stays, cleaning & self check-in' },
+  { id: 'resort', label: 'Resort / Retreat', icon: '🌴', desc: 'Leisure villas & full day rates' },
+]
 
 type RateField = keyof RoomRateBand
 const rateFields: { field: RateField; label: string }[] = [
@@ -125,7 +133,41 @@ export function SettingsPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-6">
-          <div className="space-y-4">
+          {/* Operating Model / Property Category */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-xs font-semibold text-[var(--color-ink)] uppercase tracking-wider">
+                Operating Model / Category
+              </label>
+              <span className="text-[11px] text-[var(--color-muted)]">
+                Adapts rates, booking fields, and guest receipts
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
+              {CATEGORY_OPTIONS.map((cat) => {
+                const isSelected = (form.propertyType || 'guesthouse') === cat.id
+                return (
+                  <button
+                    key={cat.id}
+                    type="button"
+                    disabled={!canEdit}
+                    onClick={() => setForm((f) => ({ ...f, propertyType: cat.id }))}
+                    className={`flex flex-col items-center justify-center p-3 rounded-xl border text-center transition ${
+                      isSelected
+                        ? 'border-[var(--color-accent)] bg-[var(--color-accent)]/10 text-[var(--color-ink)] font-semibold shadow-xs'
+                        : 'border-[var(--color-line)] bg-white text-[var(--color-muted)] hover:border-[var(--color-muted)]/50'
+                    }`}
+                  >
+                    <span className="text-xl mb-1">{cat.icon}</span>
+                    <span className="text-xs font-medium">{cat.label}</span>
+                    <span className="text-[10px] text-[var(--color-muted)] mt-0.5 leading-tight">{cat.desc}</span>
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
+          <div className="space-y-4 pt-2 border-t border-[var(--color-line)]">
             <h2 className="text-sm font-semibold text-[var(--color-ink)]">Property Profile</h2>
             <label className="flex flex-col gap-1.5 text-sm">
               <span className="font-medium">Property name</span>
@@ -166,10 +208,38 @@ export function SettingsPage() {
                 value={form.wifiPassword ?? ''}
                 onChange={(e) => setForm((f) => ({ ...f, wifiPassword: e.target.value }))}
                 disabled={!canEdit}
-                placeholder="Shown on guest folio links"
+                placeholder="Shown on guest folio links & receipts"
                 className="rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 disabled:opacity-60"
               />
             </label>
+
+            {form.propertyType === 'airbnb' && (
+              <div className="grid gap-4 sm:grid-cols-2">
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium">Default Door / Keybox PIN</span>
+                  <input
+                    value={form.defaultDoorCode ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, defaultDoorCode: e.target.value }))}
+                    disabled={!canEdit}
+                    placeholder="e.g. 4829# or Lockbox 1234"
+                    className="rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 disabled:opacity-60"
+                  />
+                  <span className="text-[11px] text-[var(--color-muted)]">Sent automatically in WhatsApp check-in receipt</span>
+                </label>
+
+                <label className="flex flex-col gap-1.5 text-sm">
+                  <span className="font-medium">Self Check-in Instructions</span>
+                  <input
+                    value={form.checkInInstructions ?? ''}
+                    onChange={(e) => setForm((f) => ({ ...f, checkInInstructions: e.target.value }))}
+                    disabled={!canEdit}
+                    placeholder="Gate entry, parking bay, elevator info..."
+                    className="rounded-lg border border-[var(--color-line)] bg-[var(--color-cream)] px-3 py-2.5 disabled:opacity-60"
+                  />
+                  <span className="text-[11px] text-[var(--color-muted)]">Included in self-service guest folio</span>
+                </label>
+              </div>
+            )}
 
             <div className="grid gap-4 sm:grid-cols-2">
               <label className="flex flex-col gap-1.5 text-sm">
@@ -208,30 +278,225 @@ export function SettingsPage() {
             />
           </div>
 
-          <div className="space-y-4">
-            <h2 className="text-sm font-semibold text-[var(--color-ink)]">Room rates (₵)</h2>
-            <p className="text-sm text-[var(--color-muted)]">
-              Applied when booking based on whether the room has air conditioning.
-            </p>
-            <RateBandFields
-              title="Air conditioned"
-              band={form.rates.ac}
-              disabled={!canEdit}
-              onChange={(ac) => updateRates({ ...form.rates, ac })}
-            />
-            <RateBandFields
-              title="Air conditioned (King size / Suite)"
-              band={form.rates.acKing}
-              disabled={!canEdit}
-              onChange={(acKing) => updateRates({ ...form.rates, acKing })}
-            />
-            <RateBandFields
-              title="Non air conditioned"
-              band={form.rates.nonAc}
-              disabled={!canEdit}
-              onChange={(nonAc) => updateRates({ ...form.rates, nonAc })}
-            />
-          </div>
+          {/* Category-Specific Rates Configuration */}
+          {form.propertyType === 'airbnb' ? (
+            <div className="space-y-4 pt-2 border-t border-[var(--color-line)]">
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--color-ink)]">Airbnb & Apartment Rates (₵)</h2>
+                <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                  Standard nightly pricing and turnover cleaning fees applied to short-stay apartments.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Nightly rate (₵)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.airbnbRates?.nightlyRate ?? DEFAULT_AIRBNB_RATES.nightlyRate}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          airbnbRates: {
+                            ...(f.airbnbRates ?? DEFAULT_AIRBNB_RATES),
+                            nightlyRate: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">Base rate per night</span>
+                </label>
+
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Weekend rate (₵)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.airbnbRates?.weekendRate ?? DEFAULT_AIRBNB_RATES.weekendRate ?? 750}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          airbnbRates: {
+                            ...(f.airbnbRates ?? DEFAULT_AIRBNB_RATES),
+                            weekendRate: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">Fri – Sun rate</span>
+                </label>
+
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Turnover cleaning fee (₵)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.airbnbRates?.cleaningFee ?? DEFAULT_AIRBNB_RATES.cleaningFee}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          airbnbRates: {
+                            ...(f.airbnbRates ?? DEFAULT_AIRBNB_RATES),
+                            cleaningFee: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">One-time per stay</span>
+                </label>
+
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Security deposit (₵)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.airbnbRates?.securityDeposit ?? DEFAULT_AIRBNB_RATES.securityDeposit ?? 200}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          airbnbRates: {
+                            ...(f.airbnbRates ?? DEFAULT_AIRBNB_RATES),
+                            securityDeposit: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">Refundable deposit</span>
+                </label>
+              </div>
+            </div>
+          ) : form.propertyType === 'hotel' ? (
+            <div className="space-y-4 pt-2 border-t border-[var(--color-line)]">
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--color-ink)]">Hotel Room Nightly Rates (₵)</h2>
+                <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                  Category nightly rates applied when booking hotel rooms and executive suites.
+                </p>
+              </div>
+
+              <div className="grid gap-3 sm:grid-cols-3">
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Standard Room (₵/night)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.hotelRates?.standardNightly ?? DEFAULT_HOTEL_RATES.standardNightly}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          hotelRates: {
+                            ...(f.hotelRates ?? DEFAULT_HOTEL_RATES),
+                            standardNightly: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">{formatMoney(form.hotelRates?.standardNightly ?? DEFAULT_HOTEL_RATES.standardNightly)}</span>
+                </label>
+
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Deluxe Room (₵/night)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.hotelRates?.deluxeNightly ?? DEFAULT_HOTEL_RATES.deluxeNightly}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          hotelRates: {
+                            ...(f.hotelRates ?? DEFAULT_HOTEL_RATES),
+                            deluxeNightly: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">{formatMoney(form.hotelRates?.deluxeNightly ?? DEFAULT_HOTEL_RATES.deluxeNightly)}</span>
+                </label>
+
+                <label className="flex flex-col gap-1.5 text-sm rounded-xl border border-[var(--color-line)] bg-[var(--color-cream)] p-4">
+                  <span className="font-medium text-[var(--color-ink)]">Executive Suite (₵/night)</span>
+                  <div className="flex items-center gap-1 mt-1">
+                    <span className="text-[var(--color-muted)]">₵</span>
+                    <input
+                      type="number"
+                      min={0}
+                      value={form.hotelRates?.suiteNightly ?? DEFAULT_HOTEL_RATES.suiteNightly}
+                      disabled={!canEdit}
+                      onChange={(e) =>
+                        setForm((f) => ({
+                          ...f,
+                          hotelRates: {
+                            ...(f.hotelRates ?? DEFAULT_HOTEL_RATES),
+                            suiteNightly: Math.max(0, Number(e.target.value)),
+                          },
+                        }))
+                      }
+                      className="w-full rounded-lg border border-[var(--color-line)] bg-white px-3 py-2 disabled:opacity-60"
+                    />
+                  </div>
+                  <span className="text-xs text-[var(--color-muted)] mt-1">{formatMoney(form.hotelRates?.suiteNightly ?? DEFAULT_HOTEL_RATES.suiteNightly)}</span>
+                </label>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-4 pt-2 border-t border-[var(--color-line)]">
+              <div>
+                <h2 className="text-sm font-semibold text-[var(--color-ink)]">Guest House Hourly & Daily Rates (₵)</h2>
+                <p className="text-xs text-[var(--color-muted)] mt-0.5">
+                  Applied when booking based on whether the room has air conditioning.
+                </p>
+              </div>
+              <RateBandFields
+                title="Air conditioned"
+                band={form.rates.ac}
+                disabled={!canEdit}
+                onChange={(ac) => updateRates({ ...form.rates, ac })}
+              />
+              <RateBandFields
+                title="Air conditioned (King size / Suite)"
+                band={form.rates.acKing}
+                disabled={!canEdit}
+                onChange={(acKing) => updateRates({ ...form.rates, acKing })}
+              />
+              <RateBandFields
+                title="Non air conditioned"
+                band={form.rates.nonAc}
+                disabled={!canEdit}
+                onChange={(nonAc) => updateRates({ ...form.rates, nonAc })}
+              />
+            </div>
+          )}
 
           {error && (
             <p className="rounded-lg bg-rose-50 px-3 py-2 text-sm text-rose-700">{error}</p>

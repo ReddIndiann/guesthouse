@@ -71,8 +71,13 @@ export function FolioPage() {
               <span className="font-medium">{folio.guestName}</span>
             </div>
             <div className="flex justify-between">
-              <span className="text-[var(--color-muted)]">Room</span>
-              <span className="font-medium">{folio.roomNumber}</span>
+              <span className="text-[var(--color-muted)]">
+                {folio.propertyType === 'airbnb' ? 'Unit / Apt' : 'Room'}
+              </span>
+              <span className="font-medium">
+                {folio.propertyType === 'airbnb' ? 'Unit ' : 'Room '}
+                {folio.roomNumber}
+              </span>
             </div>
             <div className="flex justify-between">
               <span className="text-[var(--color-muted)]">Stay</span>
@@ -80,11 +85,28 @@ export function FolioPage() {
             </div>
           </div>
 
+          {folio.doorCode && (
+            <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-4 text-center">
+              <span className="text-[11px] font-semibold uppercase tracking-wider text-amber-800 block">
+                🔑 Self Check-in Door / Keybox PIN
+              </span>
+              <span className="text-xl font-mono font-bold text-amber-950 tracking-widest mt-1 block">
+                {folio.doorCode}
+              </span>
+            </div>
+          )}
+
           <div className="mt-6 rounded-xl bg-[var(--color-cream)] p-4">
             <div className="flex justify-between text-sm">
-              <span>Room charges</span>
+              <span>{folio.propertyType === 'airbnb' ? 'Apartment charges' : 'Room charges'}</span>
               <span>{formatMoney(folio.baseAmount)}</span>
             </div>
+            {folio.cleaningFee ? (
+              <div className="mt-1 flex justify-between text-sm text-[var(--color-muted)]">
+                <span>Turnover cleaning fee</span>
+                <span>{formatMoney(folio.cleaningFee)}</span>
+              </div>
+            ) : null}
             {folio.extraCharges.map((c) => (
               <div key={c.id} className="mt-1 flex justify-between text-sm text-[var(--color-muted)]">
                 <span>{c.description}</span>
@@ -137,6 +159,8 @@ export function FolioPage() {
                   paymentMethod: folio.paymentMethod,
                   paymentReference: folio.paymentReference,
                   wifiPassword: folio.wifiPassword,
+                  doorCode: folio.doorCode,
+                  propertyType: folio.propertyType,
                 })
                 openWhatsAppReceipt(undefined, msg)
               }}

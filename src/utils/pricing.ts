@@ -1,4 +1,4 @@
-import type { BookingRateType, PropertyRates, Room } from '../types'
+import type { BookingRateType, PropertyRates, PropertySettings, Room } from '../types'
 import { DEFAULT_PROPERTY_RATES } from '../types'
 import { nightsBetween } from './dates'
 
@@ -6,6 +6,7 @@ export const RATE_TYPE_LABELS: Record<BookingRateType, string> = {
   full_day: 'Full day',
   per_hour: 'Per hour',
   two_hours: '2 hours',
+  nightly: 'Nightly stay',
 }
 
 export function mergePropertyRates(partial?: Partial<PropertyRates>): PropertyRates {
@@ -30,10 +31,45 @@ export function getRateBand(rates: PropertyRates, room: Pick<Room, 'hasAirCondit
 
 export function calculateBookingTotal(
   rates: PropertyRates,
-  room: Pick<Room, 'hasAirConditioning' | 'amenities' | 'type'>,
+  room: Pick<Room, 'hasAirConditioning' | 'amenities' | 'type' | 'nightlyPrice'>,
   rateType: BookingRateType,
-  options?: { hours?: number; checkIn?: string; checkOut?: string },
+  options?: {
+    hours?: number
+    checkIn?: string
+    checkOut?: string
+    nights?: number
+    cleaningFee?: number
+    propertySettings?: PropertySettings
+  },
 ): number {
+  if (rateType === 'nightly') {
+    const nights = options?.nights ?? (
+      options?.checkIn && options?.checkOut
+        ? Math.max(1, nightsBetween(options.checkIn, options.checkOut))
+        : 1
+    )
+    let nightly = room.nightlyPrice
+    if (!nightly && options?.propertySettings?.propertyType === 'airbnb') {
+      nightly = options.propertySettings.airbnbRates?.nightlyRate ?? 650
+    } else if (!nightly && options?.propertySettings?.propertyType === 'hotel') {
+      if (room.type === 'suite') {
+        nightly = options.propertySettings.hotelRates?.suiteNightly ?? 950
+      } else {
+        nightly = options.propertySettings.hotelRates?.standardNightly ?? 450
+      }
+    }
+    if (!nightly) {
+      const band = getRateBand(rates, room)
+      nightly = band.fullDay
+    }
+    const cleaning = options?.cleaningFee ?? (
+      options?.propertySettings?.propertyType === 'airbnb'
+        ? (options.propertySettings.airbnbRates?.cleaningFee ?? 0)
+        : 0
+    )
+    return (nightly * nights) + (cleaning || 0)
+  }
+
   const band = getRateBand(rates, room)
 
   switch (rateType) {
@@ -41,7 +77,7 @@ export function calculateBookingTotal(
       const nights =
         options?.checkIn && options?.checkOut
           ? Math.max(1, nightsBetween(options.checkIn, options.checkOut))
-          : 1
+          : (options?.nights ?? 1)
       return band.fullDay * nights
     }
     case 'two_hours':
@@ -52,6 +88,8 @@ export function calculateBookingTotal(
       if (h === 2) return band.twoHours
       return band.threeHours + (h - 3) * (band.threeHours - band.twoHours)
     }
+    default:
+      return band.fullDay
   }
 }
 

@@ -54,8 +54,13 @@ export function BookingReceipt({ settings, booking, guest, room }: BookingReceip
           </div>
         )}
         <div className="flex justify-between gap-4">
-          <dt className="text-[var(--color-muted)]">Room:</dt>
-          <dd className="font-bold text-right text-sm">Room {room?.number ?? '—'}</dd>
+          <dt className="text-[var(--color-muted)]">
+            {settings.propertyType === 'airbnb' ? 'Unit / Apt:' : 'Room:'}
+          </dt>
+          <dd className="font-bold text-right text-sm">
+            {settings.propertyType === 'airbnb' ? 'Unit ' : 'Room '}
+            {room?.number ?? '—'}
+          </dd>
         </div>
         <div className="flex justify-between gap-4">
           <dt className="text-[var(--color-muted)]">Plan:</dt>
@@ -70,9 +75,15 @@ export function BookingReceipt({ settings, booking, guest, room }: BookingReceip
       {/* Itemized charges */}
       <div className="mt-4 border-t border-dashed border-[var(--color-line)] pt-3 space-y-1.5 text-xs">
         <div className="flex justify-between">
-          <span>Room Rate</span>
+          <span>{settings.propertyType === 'airbnb' ? 'Nightly Rate' : 'Room Rate'}</span>
           <span>{formatMoney(roomBase)}</span>
         </div>
+        {booking.cleaningFee ? (
+          <div className="flex justify-between text-[var(--color-muted)]">
+            <span>+ Turnover Cleaning Fee</span>
+            <span>{formatMoney(booking.cleaningFee)}</span>
+          </div>
+        ) : null}
         {(booking.extraCharges ?? []).map((charge) => (
           <div key={charge.id} className="flex justify-between text-[var(--color-muted)]">
             <span>+ {charge.description}</span>
@@ -116,6 +127,22 @@ export function BookingReceipt({ settings, booking, guest, room }: BookingReceip
           </div>
         )}
       </div>
+
+      {(booking.doorCode || room?.doorCode || settings.defaultDoorCode) && (
+        <div className="mt-4 rounded-xl bg-amber-50 p-3 text-center text-xs border border-amber-200 text-amber-950">
+          <p className="text-[10px] uppercase tracking-wider font-semibold text-amber-800">
+            🔑 Self Check-in Door / Keybox PIN
+          </p>
+          <p className="font-mono font-bold mt-1 text-base tracking-widest text-amber-950">
+            {booking.doorCode || room?.doorCode || settings.defaultDoorCode}
+          </p>
+          {settings.checkInInstructions && (
+            <p className="text-[10px] text-amber-800 mt-1 leading-snug">
+              {settings.checkInInstructions}
+            </p>
+          )}
+        </div>
+      )}
 
       {settings.wifiPassword && (
         <div className="mt-4 rounded-lg bg-[var(--color-cream)] p-2.5 text-center text-xs border border-[var(--color-line)]">
