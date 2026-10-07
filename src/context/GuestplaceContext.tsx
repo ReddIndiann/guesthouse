@@ -39,6 +39,7 @@ import {
 import { preparePostCheckoutFeedback } from '../lib/checkoutFeedback'
 import { markSuggestionRead, subscribeToSuggestions } from '../lib/suggestions'
 import { applyThemeToDocument } from '../utils/theme'
+import { isToday, todayISO } from '../utils/dates'
 import {
   DEFAULT_PROPERTY_SETTINGS,
   type Booking,
@@ -179,7 +180,7 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
       bookings.find(
         (b) =>
           b.roomId === roomId &&
-          (b.status === 'checked_in' || b.status === 'confirmed'),
+          (b.status === 'checked_in' || (b.status === 'confirmed' && isToday(b.checkIn))),
       ),
     [bookings],
   )
@@ -298,12 +299,32 @@ export function GuestplaceProvider({ children }: { children: ReactNode }) {
 
   const clearCheckoutFeedback = useCallback(() => setCheckoutFeedback(null), [])
 
+  // Auto-heal rooms stuck in 'reserved' status if they have no confirmed booking checking in today
+  useEffect(() => {
+    if (!propertyId || rooms.length === 0) return
+    const today = todayISO()
+    const stuckReservedRooms = rooms.filter((r) => {
+      if (r.status !== 'reserved') return false
+      const hasBookingToday = bookings.some(
+        (b) => b.roomId === r.id && b.status === 'confirmed' && b.checkIn === today,
+      )
+      return !hasBookingToday
+    })
+
+    for (const r of stuckReservedRooms) {
+      updateRoomStatusDb(propertyId, r.id, 'available').catch(console.error)
+    }
+  }, [propertyId, rooms, bookings])
+
   const createBooking = useCallback(
     async (input: NewBookingInput) => {
       if (!propertyId) throw new Error('Not signed in')
       const room = rooms.find((r) => r.id === input.roomId)
       if (!room) throw new Error('Room not found')
-      if (room.status !== 'available') throw new Error('Room is not available')
+      if (room.status === 'maintenance') throw new Error('Room is currently under maintenance')
+      if (input.walkIn && (room.status === 'occupied' || room.status === 'cleaning')) {
+        throw new Error(`Room is currently ${room.status} and cannot take a walk-in right now`)
+      }
       
       const existingGuest = guests.find((g) => {
         const nameMatch = g.name.trim().toLowerCase() === input.guest.name.trim().toLowerCase()

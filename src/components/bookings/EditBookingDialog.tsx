@@ -15,7 +15,7 @@ import { useGuestplace } from '../../context/GuestplaceContext'
 import type { Booking } from '../../types'
 import { formatMoney } from '../../utils/currency'
 import { formatBookingSchedule } from '../../utils/datetime'
-import { sumExtraCharges } from '../../utils/bookings'
+import { hasRoomConflict, sumExtraCharges } from '../../utils/bookings'
 
 interface EditBookingDialogProps {
   booking: Booking | null
@@ -26,7 +26,7 @@ interface EditBookingDialogProps {
 export function EditBookingDialog({ booking, open, onClose }: EditBookingDialogProps) {
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
-  const { rooms, getGuest, getRoom } = useGuestplace()
+  const { rooms, bookings, getGuest, getRoom } = useGuestplace()
   const { extendStay, changeRoom, addCharge, getFolioUrl } = useOperations()
 
   const [tab, setTab] = useState(0)
@@ -43,7 +43,20 @@ export function EditBookingDialog({ booking, open, onClose }: EditBookingDialogP
   const guest = getGuest(booking.guestId)
   const room = getRoom(booking.roomId)
   const availableRooms = rooms.filter(
-    (r) => r.status === 'available' && r.id !== booking.roomId,
+    (r) =>
+      r.id !== booking.roomId &&
+      r.status !== 'maintenance' &&
+      (booking.status === 'checked_in'
+        ? r.status === 'available'
+        : !hasRoomConflict(
+            bookings,
+            r.id,
+            booking.checkIn,
+            booking.checkOut,
+            booking.checkInTime,
+            booking.checkOutTime,
+            booking.id,
+          )),
   )
 
   const reset = () => {

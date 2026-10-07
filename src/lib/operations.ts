@@ -474,7 +474,10 @@ export async function changeBookingRoom(
   settings: PropertySettings,
 ): Promise<{ roomId: string; baseAmount: number }> {
   if (newRoom.id === booking.roomId) throw new Error('Guest is already in this room')
-  if (newRoom.status !== 'available') throw new Error('Target room is not available')
+  if (newRoom.status === 'maintenance') throw new Error('Target room is under maintenance')
+  if (booking.status === 'checked_in' && newRoom.status !== 'available') {
+    throw new Error('Target room is not available right now')
+  }
 
   if (
     hasRoomConflict(
@@ -504,9 +507,13 @@ export async function changeBookingRoom(
   if (booking.status === 'checked_in') {
     batch.update(doc(db, 'properties', propertyId, 'rooms', oldRoom.id), { status: 'cleaning' })
     batch.update(doc(db, 'properties', propertyId, 'rooms', newRoom.id), { status: 'occupied' })
-  } else if (booking.status === 'confirmed') {
-    batch.update(doc(db, 'properties', propertyId, 'rooms', oldRoom.id), { status: 'available' })
-    batch.update(doc(db, 'properties', propertyId, 'rooms', newRoom.id), { status: 'reserved' })
+  } else if (booking.status === 'confirmed' && booking.checkIn === todayISO()) {
+    if (oldRoom.status === 'reserved') {
+      batch.update(doc(db, 'properties', propertyId, 'rooms', oldRoom.id), { status: 'available' })
+    }
+    if (newRoom.status === 'available') {
+      batch.update(doc(db, 'properties', propertyId, 'rooms', newRoom.id), { status: 'reserved' })
+    }
   }
   await batch.commit()
 

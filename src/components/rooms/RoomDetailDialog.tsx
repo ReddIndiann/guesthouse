@@ -17,6 +17,8 @@ import { useRbac } from '../../context/RbacContext'
 import { useGuestplace } from '../../context/GuestplaceContext'
 import { StatusLabel } from '../ui/StatusLabel'
 import { formatRateSummary, roomHasAirConditioning } from '../../utils/pricing'
+import { hasRoomConflict } from '../../utils/bookings'
+import { addDaysISO, todayISO } from '../../utils/dates'
 import { RoomFormDialog } from './RoomFormDialog'
 import { CheckoutSettlementModal } from '../bookings/CheckoutSettlementModal'
 import type { SettlementInput } from '../../lib/firestore'
@@ -41,7 +43,7 @@ export function RoomDetailDialog({
   const theme = useTheme()
   const fullScreen = useMediaQuery(theme.breakpoints.down('sm'))
   const { can } = useRbac()
-  const { rooms, settings, updateRoomStatus, markRoomReady, getBookingForRoom, checkOut, updateRoom, deleteRoom } =
+  const { rooms, settings, bookings, updateRoomStatus, markRoomReady, getBookingForRoom, checkOut, updateRoom, deleteRoom } =
     useGuestplace()
   const [newStatus, setNewStatus] = useState<RoomStatus>('available')
   const [editOpen, setEditOpen] = useState(false)
@@ -57,7 +59,22 @@ export function RoomDetailDialog({
   const canUpdateStatus = can('rooms.updateStatus')
   const canEdit = can('rooms.update')
   const canDelete = can('rooms.delete')
-  const canBook = room.status === 'available' && can('bookings.create')
+
+  const today = todayISO()
+  const hasConflictToday = hasRoomConflict(
+    bookings,
+    room.id,
+    today,
+    addDaysISO(today, 1),
+    settings.checkInTime,
+    settings.checkOutTime,
+  )
+  const canBook =
+    room.status !== 'maintenance' &&
+    room.status !== 'occupied' &&
+    room.status !== 'cleaning' &&
+    !hasConflictToday &&
+    can('bookings.create')
 
   const handleStatusUpdate = () => {
     // If the room is currently occupied with an active booking, require settlement/checkout instead of silent status change

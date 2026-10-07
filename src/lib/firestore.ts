@@ -485,7 +485,7 @@ export async function cancelBookingRecord(
   batch.update(doc(propertyCollection(propertyId, 'bookings'), bookingId), {
     status: 'cancelled',
   })
-  if (roomStatus !== 'occupied') {
+  if (roomStatus === 'reserved') {
     batch.update(doc(propertyCollection(propertyId, 'rooms'), roomId), { status: 'available' })
   }
   await batch.commit()
@@ -558,7 +558,7 @@ export async function createBookingRecord(
     checkOutTime: slot.checkOutTime,
     rateType: input.rateType,
     ...(input.rateType === 'per_hour' && input.hours ? { hours: input.hours } : {}),
-    status: walkIn || checkInToday ? 'checked_in' : 'confirmed',
+    status: walkIn ? 'checked_in' : 'confirmed',
     baseAmount: totalAmount,
     totalAmount,
     amountPaid: payment.amountPaid,
@@ -583,9 +583,15 @@ export async function createBookingRecord(
     }
   }
   batch.set(bookingRef, bookingData)
-  batch.update(doc(propertyCollection(propertyId, 'rooms'), input.roomId), {
-    status: walkIn || checkInToday ? 'occupied' : 'reserved',
-  })
+  if (walkIn) {
+    batch.update(doc(propertyCollection(propertyId, 'rooms'), input.roomId), {
+      status: 'occupied',
+    })
+  } else if (checkInToday && room.status === 'available') {
+    batch.update(doc(propertyCollection(propertyId, 'rooms'), input.roomId), {
+      status: 'reserved',
+    })
+  }
   await batch.commit()
   return bookingRef.id
 }

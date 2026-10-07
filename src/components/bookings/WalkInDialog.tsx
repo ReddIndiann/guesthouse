@@ -11,6 +11,7 @@ import {
 import { useGuestplace } from '../../context/GuestplaceContext'
 import type { Booking, BookingRateType } from '../../types'
 import { defaultWalkInSlot } from '../../utils/datetime'
+import { addDaysISO, todayISO } from '../../utils/dates'
 import { hasRoomConflict } from '../../utils/bookings'
 import { formatMoney } from '../../utils/currency'
 import {
@@ -39,10 +40,14 @@ export function WalkInDialog({ open, onClose, preselectedRoomId }: WalkInDialogP
   const isHotel = settings.propertyType === 'hotel'
   const isNightlyModel = isAirbnb || isHotel
 
-  const availableRooms = rooms.filter((r) => r.status === 'available')
-  
-  const nowISO = new Date().toISOString()
-  const walkInRooms = availableRooms.filter((r) => !hasRoomConflict(bookings, r.id, nowISO, nowISO, settings.checkInTime, settings.checkOutTime))
+  const today = todayISO()
+  const nextDay = addDaysISO(today, 1)
+  const walkInRooms = rooms.filter((r) => {
+    if (r.status === 'maintenance' || r.status === 'occupied' || r.status === 'cleaning') {
+      return false
+    }
+    return !hasRoomConflict(bookings, r.id, today, nextDay, settings.checkInTime, settings.checkOutTime)
+  })
 
   const [step, setStep] = useState<Step>(preselectedRoomId ? 'rate' : 'room')
   const [roomId, setRoomId] = useState(preselectedRoomId ?? '')
